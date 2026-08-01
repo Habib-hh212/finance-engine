@@ -1,6 +1,6 @@
 # Backend
 
-FastAPI service: company setup, CSV-based sales import, Sales Forecasting (moving average / weighted average / exponential smoothing), and Budget Planning with a Manager → Finance → CFO approval chain.
+FastAPI service: company setup, CSV-based sales import, Sales Forecasting (moving average / weighted average / exponential smoothing), Budget Planning with a Manager → Finance → CFO approval chain, and a rolling Cash Flow Forecast driven off both.
 
 ## Run with Docker (recommended)
 
@@ -48,3 +48,6 @@ Optional: `product_name`, `customer_name`.
 - `POST /budgets/{id}/submit` — moves `draft`/`rejected` → `pending_manager`
 - `POST /budgets/{id}/approve` — advances the chain: `pending_manager` → `pending_finance` → `pending_cfo` → `approved` (locked)
 - `POST /budgets/{id}/reject` — moves the current pending stage → `rejected`; resubmit to restart the chain
+- `POST /cashflow/items?company_id=<uuid>` — add a manual cash movement (`category`: `receivable_collection` | `payroll` | `vendor_payment` | `tax` | `loan` | `interest` | `other`; `direction`: `in` | `out`)
+- `GET /cashflow/items?company_id=<uuid>` — list manual cash items
+- `GET /cashflow/forecast?company_id=<uuid>&start_period=<YYYY-MM-DD>&periods=12&collection_lag_days=30&opening_balance=0` — rolling cash flow: cash-in from the sales forecast (shifted by the collection lag) + manual inflows, minus cash-out from **approved** expense budgets + manual outflows, with a running balance. Draft/pending budgets are excluded on purpose — they aren't a commitment yet. Assumes all contributing amounts are already in the company's base currency (FX conversion is a Phase 4 item).

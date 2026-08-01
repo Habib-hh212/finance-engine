@@ -155,4 +155,4 @@ Per your instruction, this doesn't live as a local-only folder — it's a proper
 
 ---
 
-*Status: repo created and scaffolded. Sales Forecasting and Budget Planning (with the Manager → Finance → CFO approval chain) are built end-to-end. Cash Flow Forecast and Cost Controlling & Variance are next.*
+*Status: repo created and scaffolded. Sales Forecasting, Budget Planning (Manager → Finance → CFO approval chain), and Cash Flow Forecast (driven off both, plus manual entries) are built end-to-end. Cost Controlling & Variance is next.*
