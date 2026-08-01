@@ -155,4 +155,4 @@ Per your instruction, this doesn't live as a local-only folder — it's a proper
 
 ---
 
-*Status: all four "full" Phase 1 modules are built end-to-end — Sales Forecasting, Budget Planning (Manager → Finance → CFO approval chain), Cash Flow Forecast (driven off both, plus manual entries), and Cost Controlling & Variance (budget-vs-actual and budget-consumption, both with direction-aware traffic-light status). 20 tests passing. Remaining Phase 1 scope: the "light" Profitability Analysis and KPI Dashboard, and the rule-based AI Engine v0 — plus the frontend and CI, which nothing has touched yet.*
+*Status: the entire Phase 1 backend is built end-to-end — all four full modules (Sales Forecasting, Budget Planning, Cash Flow Forecast, Cost Controlling & Variance) plus the three light modules (Profitability Analysis, KPI Dashboard, AI Engine v0). 38 tests passing. Nothing has touched the frontend (still an empty placeholder) or CI yet — those are what's left before Phase 1 is fully done.*

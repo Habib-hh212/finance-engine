@@ -1,6 +1,7 @@
 import uuid
+from typing import Optional
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import ForeignKey, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -14,6 +15,10 @@ class Product(Base):
     company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     sku: Mapped[str] = mapped_column(String(64), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Variable cost to produce/deliver one unit — needed for contribution-margin
+    # analysis. Nullable: not every product has this set, in which case
+    # profitability figures for it are omitted rather than assumed zero.
+    unit_variable_cost: Mapped[Optional[float]] = mapped_column(Numeric(18, 4), nullable=True)
 
 
 class Customer(Base):
