@@ -99,10 +99,18 @@ erDiagram
     USER ||--o{ APPROVAL : performs
     USER }o--|| ROLE : has
 
+    COMPANY ||--o{ EXCHANGE_RATE : uses
+    EXCHANGE_RATE {
+        uuid id
+        string from_currency
+        string to_currency
+        date rate_date
+        numeric rate
+    }
     COMPANY {
         uuid id
         string name
-        string currency
+        string base_currency
     }
     BUDGET {
         uuid id
@@ -124,15 +132,7 @@ Full entity list from your original design (Product, Supplier, Inventory, Purcha
 
 ## 5. Repo & hosting: GitHub, not local-only
 
-Per your instruction, this won't live as a local-only folder — it'll be a proper GitHub repository from the start, with GitHub Actions for CI (lint, test, Docker build) as noted in §3.
-
-Before I initialize it, I need three things from you:
-
-1. **Repo name** (e.g. `finance-engine`)
-2. **Owner** — your personal GitHub account, or an org?
-3. **Visibility** — private or public?
-
-Once you confirm, I'll run `gh repo create`, push the initial scaffold, and wire up a basic Actions workflow. I won't create or push anything until you've confirmed those three details.
+Per your instruction, this doesn't live as a local-only folder — it's a proper GitHub repository: **[`Habib-hh212/finance-engine`](https://github.com/Habib-hh212/finance-engine)** (public). GitHub Actions CI (lint, test, Docker build) comes once there's code worth running it against.
 
 ---
 
@@ -149,10 +149,10 @@ Once you confirm, I'll run `gh repo create`, push the initial scaffold, and wire
 
 ## 7. Open decisions before Phase 1 build starts
 
-- [ ] Confirm repo name, owner, visibility (§5)
-- [ ] Confirm data source for Phase 1 — manual CSV/Excel upload is assumed above; say if there's an existing system (even just "our sales data lives in an Excel export from X") to design the importer around
-- [ ] Confirm currency scope — single currency in Phase 1, or multi-currency from day one given "multi-company" is the stated target scale?
+- [x] Repo name, owner, visibility (§5) — `Habib-hh212/finance-engine`, public
+- [x] Data source for Phase 1 — **manual CSV/Excel upload**. No live ERP/SAP connector yet; deferred to Phase 4 even though the user has a SAP FICO background, so it can be pulled forward later without re-architecting the import layer
+- [x] Currency scope — **multi-currency from day one**. Every `Company` carries a base currency; every actual/forecast/budget line carries its own transaction currency plus the FX rate applied at that date. Full FX *scenario* modeling (§6 Phase 4) still comes later — Phase 1 just needs correct storage and conversion, not "what if the dollar moves 5%" simulation.
 
 ---
 
-*Next step: once you confirm §5 and §7, I'll scaffold the repo (backend skeleton, Postgres schema, one working module end-to-end) rather than building all four Phase 1 modules blind.*
+*Status: repo created and scaffolded. Backend build in progress — Sales Forecasting is the first module going in end-to-end.*

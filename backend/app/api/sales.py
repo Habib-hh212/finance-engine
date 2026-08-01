@@ -1,0 +1,76 @@
+import uuid
+from datetime import date
+
+import pandas as pd
+from dateutil.relativedelta import relativedelta
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models import SalesActual
+from app.schemas.sales import ForecastPointOut, ForecastResponse, SalesUploadResult
+from app.services import forecasting
+from app.services.sales_import import import_sales_csv
+
+router = APIRouter(prefix="/sales", tags=["sales"])
+
+
+@router.post("/upload", response_model=SalesUploadResult)
+async def upload_sales_csv(company_id: uuid.UUID, file: UploadFile, db: Session = Depends(get_db)):
+    if not file.filename.lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Only .csv files are supported")
+    contents = await file.read()
+    try:
+        result = import_sales_csv(db, company_id, contents)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return result
+
+
+@router.get("/forecast", response_model=ForecastResponse)
+def get_forecast(
+    company_id: uuid.UUID,
+    product_id: uuid.UUID,
+    model: str = Query("exponential_smoothing", description="moving_average | weighted_average | exponential_smoothing"),
+    periods: int = Query(3, ge=1, le=24),
+    db: Session = Depends(get_db),
+):
+    actuals = (
+        db.query(SalesActual)
+        .filter(SalesActual.company_id == company_id, SalesActual.product_id == product_id)
+        .order_by(SalesActual.period)
+        .all()
+    )
+    if not actuals:
+        raise HTTPException(status_code=404, detail="No sales history for this company/product")
+
+    history = pd.Series(
+        [float(a.amount) for a in actuals],
+        index=[a.period for a in actuals],
+    )
+    currency = actuals[-1].currency
+
+    try:
+        points = forecasting.forecast(history, model=model, periods=periods)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    last_period: date = actuals[-1].period
+    out_points = [
+        ForecastPointOut(
+            period=last_period + relativedelta(months=p.period_offset),
+            forecast=p.forecast,
+            lower_bound=p.lower_bound,
+            upper_bound=p.upper_bound,
+            currency=currency,
+        )
+        for p in points
+    ]
+
+    return ForecastResponse(
+        company_id=company_id,
+        product_id=product_id,
+        model=model,
+        history_periods=len(actuals),
+        points=out_points,
+    )
