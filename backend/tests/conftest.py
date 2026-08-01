@@ -6,10 +6,10 @@ if _TEST_DB.exists():
     _TEST_DB.unlink()
 os.environ["DATABASE_URL"] = f"sqlite:///{_TEST_DB}"
 
-import pytest
-from fastapi.testclient import TestClient
+import pytest  # noqa: E402 - must follow the DATABASE_URL override above
+from fastapi.testclient import TestClient  # noqa: E402
 
-from app.main import app
+from app.main import app  # noqa: E402 - app.config reads DATABASE_URL at import time
 
 
 @pytest.fixture(scope="session")

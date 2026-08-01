@@ -93,6 +93,6 @@ def test_reject_then_resubmit_restarts_chain(client, company):
 
 def test_forecast_and_budget_share_the_same_company(client, company):
     # sanity check that the two modules coexist against the same company record
-    r = client.get(f"/companies")
+    r = client.get("/companies")
     assert r.status_code == 200
     assert any(c["id"] == company["id"] for c in r.json())

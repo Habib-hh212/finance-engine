@@ -155,4 +155,4 @@ Per your instruction, this doesn't live as a local-only folder — it's a proper
 
 ---
 
-*Status: the entire Phase 1 backend is built end-to-end — all four full modules (Sales Forecasting, Budget Planning, Cash Flow Forecast, Cost Controlling & Variance) plus the three light modules (Profitability Analysis, KPI Dashboard, AI Engine v0). 38 tests passing. Nothing has touched the frontend (still an empty placeholder) or CI yet — those are what's left before Phase 1 is fully done.*
+*Status: the entire Phase 1 backend is built end-to-end — all four full modules (Sales Forecasting, Budget Planning, Cash Flow Forecast, Cost Controlling & Variance) plus the three light modules (Profitability Analysis, KPI Dashboard, AI Engine v0). 38 tests passing, lint clean, CI running on every push/PR (lint + test + Docker build). The frontend (still an empty placeholder) is what's left before Phase 1 is fully done.*

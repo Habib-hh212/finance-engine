@@ -19,14 +19,22 @@ Requires Python 3.12 and a running PostgreSQL instance matching `DATABASE_URL` (
 ```
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 uvicorn app.main:app --reload
 ```
+
+`requirements-dev.txt` includes `requirements.txt` plus pytest/httpx/ruff; the Docker image installs only `requirements.txt`, so test tooling never ships in the runtime container.
 
 ## Tests
 
 ```
 pytest
+```
+
+## Lint
+
+```
+ruff check .
 ```
 
 ## Sales CSV format
