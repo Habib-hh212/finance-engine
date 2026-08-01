@@ -155,4 +155,4 @@ Per your instruction, this doesn't live as a local-only folder — it's a proper
 
 ---
 
-*Status: repo created and scaffolded. Backend build in progress — Sales Forecasting is the first module going in end-to-end.*
+*Status: repo created and scaffolded. Sales Forecasting and Budget Planning (with the Manager → Finance → CFO approval chain) are built end-to-end. Cash Flow Forecast and Cost Controlling & Variance are next.*

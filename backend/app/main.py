@@ -1,17 +1,22 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
-from app.api import companies, sales
+from app.api import budgets, companies, sales
 from app.database import Base, engine
 
-app = FastAPI(title="Finance Engine API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(title="Finance Engine API", version="0.1.0", lifespan=lifespan)
 
 app.include_router(companies.router)
 app.include_router(sales.router)
-
-
-@app.on_event("startup")
-def on_startup() -> None:
-    Base.metadata.create_all(bind=engine)
+app.include_router(budgets.router)
 
 
 @app.get("/health")

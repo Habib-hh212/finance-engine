@@ -1,6 +1,6 @@
 # Backend
 
-FastAPI service: company setup, CSV-based sales import, and Sales Forecasting (moving average / weighted average / exponential smoothing).
+FastAPI service: company setup, CSV-based sales import, Sales Forecasting (moving average / weighted average / exponential smoothing), and Budget Planning with a Manager → Finance → CFO approval chain.
 
 ## Run with Docker (recommended)
 
@@ -40,3 +40,11 @@ Optional: `product_name`, `customer_name`.
 - `GET /companies` — list companies
 - `POST /sales/upload?company_id=<uuid>` — upload a sales CSV (multipart `file`)
 - `GET /sales/forecast?company_id=<uuid>&product_id=<uuid>&model=<model>&periods=<n>` — forecast the next `n` months
+- `POST /gl-accounts?company_id=<uuid>` — create a GL account (`category`: `revenue` | `expense`)
+- `GET /gl-accounts?company_id=<uuid>` — list GL accounts
+- `POST /budgets?company_id=<uuid>` — create a budget (`type`: `revenue` | `expense` | `master`), starts in `draft`
+- `GET /budgets?company_id=<uuid>` / `GET /budgets/{id}` — list / fetch a budget (detail includes lines + approval history)
+- `POST /budgets/{id}/lines` — add line items (only while `draft`)
+- `POST /budgets/{id}/submit` — moves `draft`/`rejected` → `pending_manager`
+- `POST /budgets/{id}/approve` — advances the chain: `pending_manager` → `pending_finance` → `pending_cfo` → `approved` (locked)
+- `POST /budgets/{id}/reject` — moves the current pending stage → `rejected`; resubmit to restart the chain

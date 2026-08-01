@@ -1,11 +1,10 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    database_url: str = "postgresql+psycopg2://finance:finance@localhost:5432/finance_engine"
+    model_config = SettingsConfigDict(env_file=".env")
 
-    class Config:
-        env_file = ".env"
+    database_url: str = "postgresql+psycopg2://finance:finance@localhost:5432/finance_engine"
 
 
 settings = Settings()
