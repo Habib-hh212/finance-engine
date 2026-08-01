@@ -155,4 +155,4 @@ Per your instruction, this doesn't live as a local-only folder — it's a proper
 
 ---
 
-*Status: repo created and scaffolded. Sales Forecasting, Budget Planning (Manager → Finance → CFO approval chain), and Cash Flow Forecast (driven off both, plus manual entries) are built end-to-end. Cost Controlling & Variance is next.*
+*Status: all four "full" Phase 1 modules are built end-to-end — Sales Forecasting, Budget Planning (Manager → Finance → CFO approval chain), Cash Flow Forecast (driven off both, plus manual entries), and Cost Controlling & Variance (budget-vs-actual and budget-consumption, both with direction-aware traffic-light status). 20 tests passing. Remaining Phase 1 scope: the "light" Profitability Analysis and KPI Dashboard, and the rule-based AI Engine v0 — plus the frontend and CI, which nothing has touched yet.*

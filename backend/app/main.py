@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import budgets, cashflow, companies, sales
+from app.api import budgets, cashflow, companies, controlling, sales
 from app.database import Base, engine
 
 
@@ -18,6 +18,7 @@ app.include_router(companies.router)
 app.include_router(sales.router)
 app.include_router(budgets.router)
 app.include_router(cashflow.router)
+app.include_router(controlling.router)
 
 
 @app.get("/health")
