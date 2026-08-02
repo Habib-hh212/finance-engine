@@ -1,4 +1,5 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+export const TOKEN_STORAGE_KEY = "finance-engine.token";
 
 export class ApiError extends Error {
   status: number;
@@ -9,13 +10,19 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
     headers: {
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...(init?.body && !(init.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init?.headers,
     },
   });
+  if (res.status === 401) {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    window.dispatchEvent(new Event("auth:unauthorized"));
+  }
   if (!res.ok) {
     let detail = res.statusText;
     try {

@@ -1,6 +1,12 @@
 # Backend
 
-FastAPI service covering the full Phase 1 backend scope: company setup + CSV sales import, Sales Forecasting, Budget Planning with a Manager → Finance → CFO approval chain, a rolling Cash Flow Forecast driven off both, Cost Controlling & Variance (budget vs. actual, budget consumption) with traffic-light status, Profitability Analysis (contribution margin by product/customer), a KPI Dashboard, and a rule-based AI Insights engine.
+FastAPI service covering the full Phase 1 backend scope: email/password auth (JWT), company setup + CSV sales import, Sales Forecasting, Budget Planning with a Manager → Finance → CFO approval chain, a rolling Cash Flow Forecast driven off both, Cost Controlling & Variance (budget vs. actual, budget consumption) with traffic-light status, Profitability Analysis (contribution margin by product/customer), a KPI Dashboard, and a rule-based AI Insights engine.
+
+## Auth
+
+Every endpoint except `/auth/*` and `/health` requires `Authorization: Bearer <token>`. Get a token via `POST /auth/register` or `POST /auth/login`. There's no per-user company scoping yet — any logged-in user can see any company. That's a known Phase 1 gap, not an oversight; full multi-tenant RBAC is a later item.
+
+Set `JWT_SECRET_KEY` via environment variable for anything beyond local dev — the fallback in `app/config.py` is intentionally insecure and only exists so the app runs without configuration out of the box.
 
 ## Run with Docker (recommended)
 
@@ -44,6 +50,9 @@ Optional: `product_name`, `customer_name`.
 
 ## Endpoints
 
+- `POST /auth/register` — `{email, password, name}` → `{access_token}`
+- `POST /auth/login` — `{email, password}` → `{access_token}`
+- `GET /auth/me` — current user (requires the token)
 - `POST /companies` — create a company
 - `GET /companies` — list companies
 - `POST /sales/upload?company_id=<uuid>` — upload a sales CSV (multipart `file`)

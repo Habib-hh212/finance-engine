@@ -9,17 +9,22 @@ import {
   Box,
   Divider,
   Drawer,
+  IconButton,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Menu,
   MenuItem,
   Select,
   Toolbar,
+  Tooltip,
   Typography,
 } from "@mui/material";
-import type { ReactNode } from "react";
+import LogoutIcon from "@mui/icons-material/Logout";
+import { useState, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { useCompany } from "../context/CompanyContext";
 
 const DRAWER_WIDTH = 240;
@@ -35,7 +40,9 @@ const NAV_ITEMS = [
 
 export function Layout({ children }: { children: ReactNode }) {
   const { companies, company, selectCompany } = useCompany();
+  const { user, logout } = useAuth();
   const location = useLocation();
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
 
   return (
     <Box sx={{ display: "flex" }}>
@@ -59,6 +66,18 @@ export function Layout({ children }: { children: ReactNode }) {
               ))}
             </Select>
           )}
+          <Tooltip title={user?.name ?? ""}>
+            <IconButton onClick={(e) => setMenuAnchor(e.currentTarget)} size="small">
+              <LogoutIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
+            <MenuItem disabled sx={{ opacity: "1 !important" }}>
+              {user?.email}
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={logout}>Log out</MenuItem>
+          </Menu>
         </Toolbar>
       </AppBar>
       <Drawer

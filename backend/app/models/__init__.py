@@ -5,6 +5,7 @@ from app.models.company import Company
 from app.models.exchange_rate import ExchangeRate
 from app.models.product import Customer, Product
 from app.models.sales import SalesActual, SalesForecast
+from app.models.user import User
 
 __all__ = [
     "Company",
@@ -21,4 +22,5 @@ __all__ = [
     "CashItem",
     "CASH_ITEM_CATEGORIES",
     "ActualLine",
+    "User",
 ]

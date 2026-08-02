@@ -1,6 +1,7 @@
 import { Suspense, lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import { CircularProgress, Box } from "@mui/material";
+import { AuthGate } from "./components/AuthGate";
 import { CompanyGate } from "./components/CompanyGate";
 import { Layout } from "./components/Layout";
 
@@ -21,20 +22,22 @@ function PageFallback() {
 
 function App() {
   return (
-    <CompanyGate>
-      <Layout>
-        <Suspense fallback={<PageFallback />}>
-          <Routes>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/sales-forecast" element={<SalesForecastPage />} />
-            <Route path="/budgets" element={<BudgetPlanningPage />} />
-            <Route path="/cash-flow" element={<CashFlowPage />} />
-            <Route path="/controlling" element={<ControllingPage />} />
-            <Route path="/profitability" element={<ProfitabilityPage />} />
-          </Routes>
-        </Suspense>
-      </Layout>
-    </CompanyGate>
+    <AuthGate>
+      <CompanyGate>
+        <Layout>
+          <Suspense fallback={<PageFallback />}>
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/sales-forecast" element={<SalesForecastPage />} />
+              <Route path="/budgets" element={<BudgetPlanningPage />} />
+              <Route path="/cash-flow" element={<CashFlowPage />} />
+              <Route path="/controlling" element={<ControllingPage />} />
+              <Route path="/profitability" element={<ProfitabilityPage />} />
+            </Routes>
+          </Suspense>
+        </Layout>
+      </CompanyGate>
+    </AuthGate>
   );
 }
 

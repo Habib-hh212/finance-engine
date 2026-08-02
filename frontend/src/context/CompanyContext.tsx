@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { listCompanies } from "../api/companies";
 import type { Company } from "../api/types";
+import { useAuth } from "./AuthContext";
 
 const STORAGE_KEY = "finance-engine.selectedCompanyId";
 
@@ -16,6 +17,7 @@ interface CompanyContextValue {
 const CompanyContext = createContext<CompanyContextValue | undefined>(undefined);
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(localStorage.getItem(STORAGE_KEY));
   const [loading, setLoading] = useState(true);
@@ -38,9 +40,14 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    load();
+    if (user) {
+      load();
+    } else {
+      setCompanies([]);
+      setLoading(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   const selectCompany = (id: string) => {
     setSelectedId(id);

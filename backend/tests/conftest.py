@@ -15,6 +15,13 @@ from app.main import app  # noqa: E402 - app.config reads DATABASE_URL at import
 @pytest.fixture(scope="session")
 def client():
     with TestClient(app) as test_client:
+        r = test_client.post(
+            "/auth/register",
+            json={"email": "test@example.com", "password": "test-password-123", "name": "Test User"},
+        )
+        assert r.status_code == 200, r.text
+        token = r.json()["access_token"]
+        test_client.headers["Authorization"] = f"Bearer {token}"
         yield test_client
     if _TEST_DB.exists():
         _TEST_DB.unlink()
