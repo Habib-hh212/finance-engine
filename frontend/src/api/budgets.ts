@@ -6,11 +6,17 @@ import type {
   BudgetType,
   BudgetVersion,
   CapitalAppraisalRow,
+  CostCenter,
   FlexibleVarianceRow,
   GLAccount,
   GLCategory,
   GLForecastRole,
 } from "./types";
+
+export const listCostCenters = (companyId: string) => apiGet<CostCenter[]>(`/cost-centers?company_id=${companyId}`);
+
+export const createCostCenter = (companyId: string, code: string, name: string, manager_name?: string) =>
+  apiPost<CostCenter>(`/cost-centers?company_id=${companyId}`, { code, name, manager_name });
 
 export const listGLAccounts = (companyId: string) => apiGet<GLAccount[]>(`/gl-accounts?company_id=${companyId}`);
 
@@ -46,6 +52,7 @@ export interface BudgetLineInput {
   variable_rate_per_unit?: number;
   useful_life_years?: number;
   annual_cash_flow?: number;
+  cost_center_id?: string;
 }
 
 export const addBudgetLines = (budgetId: string, lines: BudgetLineInput[]) =>

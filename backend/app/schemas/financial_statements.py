@@ -4,6 +4,19 @@ from datetime import date
 from pydantic import BaseModel
 
 
+class StatementUploadResult(BaseModel):
+    rows_imported: int
+    accounts_created: int
+    cost_centers_created: int
+
+
+class IncomeStatementTrendPointOut(BaseModel):
+    period: date
+    revenue: float
+    expense: float
+    net_profit: float
+
+
 class AccountAmountOut(BaseModel):
     gl_account_id: uuid.UUID
     code: str

@@ -17,18 +17,19 @@ from app.schemas.sales import (
     SalesUploadResult,
 )
 from app.services import forecasting
-from app.services.sales_import import import_sales_csv
+from app.services.excel_export import sheets_to_xlsx_response
+from app.services.sales_import import import_sales_file
 
 router = APIRouter(prefix="/sales", tags=["sales"])
 
 
 @router.post("/upload", response_model=SalesUploadResult)
 async def upload_sales_csv(company_id: uuid.UUID, file: UploadFile, db: Session = Depends(get_db)):
-    if not file.filename.lower().endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Only .csv files are supported")
+    if not file.filename.lower().endswith((".csv", ".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="Only .csv, .xlsx, or .xls files are supported")
     contents = await file.read()
     try:
-        result = import_sales_csv(db, company_id, contents)
+        result = import_sales_file(db, company_id, contents, file.filename)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return result
@@ -155,3 +156,25 @@ def compare_forecast_models(company_id: uuid.UUID, product_id: uuid.UUID, db: Se
         history_periods=len(actuals),
         mape_by_model=mape_by_model,
     )
+
+
+@router.get("/forecast/export")
+def export_forecast(
+    company_id: uuid.UUID,
+    product_id: uuid.UUID,
+    model: str = Query("exponential_smoothing"),
+    periods: int = Query(3, ge=1, le=24),
+    db: Session = Depends(get_db),
+):
+    result = get_forecast(company_id, product_id, model, periods, db)
+    rows = [
+        {
+            "Period": p.period,
+            "Forecast": p.forecast,
+            "Lower bound": p.lower_bound,
+            "Upper bound": p.upper_bound,
+            "Currency": p.currency,
+        }
+        for p in result.points
+    ]
+    return sheets_to_xlsx_response({"Sales Forecast": rows}, f"sales-forecast-{product_id}.xlsx")

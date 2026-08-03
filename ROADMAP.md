@@ -225,6 +225,21 @@ Finishes Phase 3 except bad-debt prediction, which was deliberately not built (s
 
 ---
 
+## 6h. Dashboard charts, Excel import/export, historical-trend forecasting, Cost Center Accounting, Contact — done
+
+A maintenance/enhancement pass requested directly against the live app (bug report + a wishlist), not a planned roadmap slice — bundled here since it touches the same modules as §6a-g.
+
+- **Vercel SPA 404 fix** (`frontend/vercel.json`) — direct navigation to a route like `/sales-forecast` 404'd because there was no rewrite rule telling Vercel to always serve `index.html` and let the client-side router take over; the app only ever worked when reached via the root URL and internal `<Link>` navigation. One rewrite rule fixes every route, past and future.
+- **Dashboard charts** — two new EChart panels: a Revenue/Expense/Net Profit monthly trend (bar+line) and a Budget vs. Actual bar chart, both reusing existing endpoints (`GET /reports/income-statement/trend`, new; `GET /variance/budget-vs-actual`, existing) rather than inventing new aggregations. `income_statement_trend`/`monthly_totals_by_category` in `financial_statements.py` do the month-by-month grouping the existing `income_statement()` (a single-range total) didn't provide.
+- **Excel upload/download** — `POST /reports/upload-statements` bulk-imports historical GL actuals (any number of years, any mix of revenue/expense/asset/liability/equity, optional cost-center tagging) from an uploaded `.xlsx`/`.xls`/`.csv`, find-or-creating GL accounts and cost centers by code the same way `sales_import.py` already upserts products/customers. The Sales Forecast uploader was generalized to accept Excel too (`import_sales_file`, was `import_sales_csv`). Download side: a shared `sheets_to_xlsx_response` helper (`app/services/excel_export.py`) backs "Download Excel" buttons on the Income Statement, Balance Sheet, Financial Statement Forecast, and Sales Forecast.
+- **Historical-trend forecasting** (`forecast_method=historical_trend` on `GET /forecast/income-statement`) — the alternative to the existing driver-based method (sales forecast + approved budget): projects revenue and expense straight from their own monthly actuals history using the same model registry Sales Forecasting already has, including the ML models for an actual trend line rather than a flat statistical projection. This is what "upload three or four years of statements and forecast off the historical trend" needed, and it's also why there's no cap anywhere in the upload/query path on how many years of history are used — `monthly_totals_by_category` pulls a GL category's *entire* actuals history, unbounded. Balance Sheet still only has the driver-based method; a trend-based balance sheet (running balances, not period deltas) isn't the same kind of problem and wasn't built rather than shipped half-reasoned.
+- **Cost Center Accounting** (`CostCenter` model, `POST/GET /cost-centers`, optional `cost_center_id` on both `ActualLine` and `BudgetLine`, `GET /variance/cost-center`) — the Controlling module's one clear SAP CO gap: everything was GL-account-level only. Tagging is optional everywhere (actuals posting, budget lines, bulk statement upload) so existing untagged data keeps working; the variance report only shows what was actually tagged rather than bucketing untagged spend into a fabricated "Unassigned" total.
+- **Contact page** — static page (name, "University Project" note, phone number), added because this is a university project and the author wanted attribution reachable from the app itself.
+
+11 new/changed backend test files, 24 new tests, 127 total passing, ruff clean, `tsc -b` clean. Verified end-to-end in a real local browser (multi-year Excel upload → Dashboard/Financial Statements charts render the real data → historical-trend forecast → cost center tagging flows into its variance report → Excel downloads fire real requests) before deploying.
+
+---
+
 ## 7. Open decisions before Phase 1 build starts
 
 - [x] Repo name, owner, visibility (§5) — `Habib-hh212/finance-engine`, public

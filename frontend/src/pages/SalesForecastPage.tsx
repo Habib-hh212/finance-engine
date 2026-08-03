@@ -19,9 +19,18 @@ import {
   Typography,
 } from "@mui/material";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
+import DownloadIcon from "@mui/icons-material/Download";
 import { EChart } from "../components/EChart";
 import { useCompany } from "../context/CompanyContext";
-import { compareForecastModels, getDemandForecast, getForecast, listProducts, setProductCost, uploadSalesCsv } from "../api/sales";
+import {
+  compareForecastModels,
+  downloadForecast,
+  getDemandForecast,
+  getForecast,
+  listProducts,
+  setProductCost,
+  uploadSalesCsv,
+} from "../api/sales";
 import type { DemandForecastResponse, ForecastModel, ForecastResponse, ModelComparison, Product } from "../api/types";
 
 const MODELS: { value: ForecastModel; label: string }[] = [
@@ -200,12 +209,12 @@ export function SalesForecastPage() {
               startIcon={<UploadFileIcon />}
               onClick={() => fileInputRef.current?.click()}
             >
-              Upload sales CSV
+              Upload sales CSV or Excel
             </Button>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv"
+              accept=".csv,.xlsx,.xls"
               hidden
               onChange={(e) => {
                 const file = e.target.files?.[0];
@@ -264,6 +273,14 @@ export function SalesForecastPage() {
             />
             <Button variant="contained" onClick={handleSaveCost} disabled={costInput === ""}>
               Save cost
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={() => downloadForecast(company!.id, productId, model, periods)}
+              disabled={!productId}
+            >
+              Download Excel
             </Button>
           </Stack>
 

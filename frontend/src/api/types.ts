@@ -82,6 +82,26 @@ export interface BudgetLine {
   variable_rate_per_unit: number | null;
   useful_life_years: number | null;
   annual_cash_flow: number | null;
+  cost_center_id: string | null;
+}
+
+export interface CostCenter {
+  id: string;
+  code: string;
+  name: string;
+  manager_name: string | null;
+}
+
+export interface CostCenterVarianceRow {
+  cost_center_id: string;
+  cost_center_code: string;
+  cost_center_name: string;
+  period: string;
+  budget_amount: number;
+  actual_amount: number;
+  variance_amount: number;
+  variance_pct: number | null;
+  status: TrafficLight;
 }
 
 export interface Approval {
@@ -140,6 +160,7 @@ export interface ActualLine {
   currency: string;
   description: string | null;
   actual_quantity: number | null;
+  cost_center_id: string | null;
 }
 
 export interface VarianceRow {
@@ -384,6 +405,21 @@ export interface DemandForecastResponse {
   history_periods: number;
   points: DemandForecastPoint[];
 }
+
+export interface StatementUploadResult {
+  rows_imported: number;
+  accounts_created: number;
+  cost_centers_created: number;
+}
+
+export interface IncomeStatementTrendPoint {
+  period: string;
+  revenue: number;
+  expense: number;
+  net_profit: number;
+}
+
+export type StatementForecastMethod = "driver_based" | "historical_trend";
 
 export interface CustomerChurnRisk {
   customer_id: string;

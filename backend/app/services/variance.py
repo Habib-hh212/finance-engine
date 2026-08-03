@@ -21,7 +21,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.models import ActualLine, Budget, BudgetLine, GLAccount
+from app.models import ActualLine, Budget, BudgetLine, CostCenter, GLAccount
 
 VARIANCE_YELLOW_PCT = 5.0
 VARIANCE_RED_PCT = 15.0
@@ -227,6 +227,94 @@ def flexible_budget_variance(db: Session, budget: Budget) -> list[FlexibleVarian
                 spending_variance=round(actual_amount - flexed_amount, 2),
                 volume_variance=round(flexed_amount - static_amount, 2),
                 total_variance=round(actual_amount - static_amount, 2),
+            )
+        )
+    return rows
+
+
+@dataclass
+class CostCenterVarianceRow:
+    cost_center_id: object
+    cost_center_code: str
+    cost_center_name: str
+    period: date
+    budget_amount: float
+    actual_amount: float
+    variance_amount: float
+    variance_pct: Optional[float]
+    status: str
+
+
+def cost_center_variance(db: Session, company_id, fiscal_year: Optional[int] = None) -> list:
+    """Cost Center Accounting: the same budget-vs-actual comparison as
+    `budget_vs_actual`, but grouped by cost center instead of GL account --
+    "how is Marketing doing against its budget" rather than "how is this one
+    GL line doing." Only lines that were actually tagged with a cost center
+    are included; untagged spend has no cost-center home to report against,
+    so it's left out rather than bucketed into a fabricated "Unassigned"
+    total.
+
+    Unlike GL-account variance, a cost center can carry both revenue and
+    expense lines, so there's no single "which direction is unfavorable"
+    rule the way there is per GL category. Cost centers are overwhelmingly
+    used for cost/expense tracking in practice, so this treats spending more
+    than budgeted as the unfavorable direction uniformly -- the same
+    convention used for expense accounts above.
+    """
+    budget_query = db.query(Budget).filter(Budget.company_id == company_id, Budget.status == "approved")
+    if fiscal_year is not None:
+        budget_query = budget_query.filter(Budget.fiscal_year == fiscal_year)
+    approved_budget_ids = [b.id for b in budget_query.all()]
+
+    budget_totals: dict = defaultdict(float)
+    if approved_budget_ids:
+        lines = (
+            db.query(BudgetLine)
+            .filter(BudgetLine.budget_id.in_(approved_budget_ids), BudgetLine.cost_center_id.isnot(None))
+            .all()
+        )
+        for line in lines:
+            budget_totals[(line.cost_center_id, line.period)] += float(line.amount)
+
+    actual_totals: dict = defaultdict(float)
+    actuals = (
+        db.query(ActualLine)
+        .filter(ActualLine.company_id == company_id, ActualLine.cost_center_id.isnot(None))
+        .all()
+    )
+    for line in actuals:
+        actual_totals[(line.cost_center_id, line.period)] += float(line.amount)
+
+    centers = {c.id: c for c in db.query(CostCenter).filter(CostCenter.company_id == company_id).all()}
+
+    keys = set(budget_totals) | set(actual_totals)
+    rows = []
+    for cost_center_id, period in sorted(keys, key=lambda k: (str(k[0]), k[1])):
+        center = centers.get(cost_center_id)
+        if center is None:
+            continue  # actual/budget line tagged against a cost center outside this company; skip defensively
+        budget_amount = round(budget_totals.get((cost_center_id, period), 0.0), 2)
+        actual_amount = round(actual_totals.get((cost_center_id, period), 0.0), 2)
+        variance_amount = round(actual_amount - budget_amount, 2)
+
+        if budget_amount == 0:
+            variance_pct = None
+            status = "green" if actual_amount == 0 else "red"
+        else:
+            variance_pct = round((variance_amount / budget_amount) * 100, 1)
+            status = _status_for_unfavorable_pct(variance_pct)
+
+        rows.append(
+            CostCenterVarianceRow(
+                cost_center_id=cost_center_id,
+                cost_center_code=center.code,
+                cost_center_name=center.name,
+                period=period,
+                budget_amount=budget_amount,
+                actual_amount=actual_amount,
+                variance_amount=variance_amount,
+                variance_pct=variance_pct,
+                status=status,
             )
         )
     return rows

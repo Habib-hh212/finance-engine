@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import ActualLine, Budget
 from app.schemas.actual import ActualLineCreate, ActualLineOut
-from app.schemas.variance import BudgetConsumptionOut, VarianceRowOut
+from app.schemas.variance import BudgetConsumptionOut, CostCenterVarianceRowOut, VarianceRowOut
 from app.services import variance
 
 router = APIRouter(tags=["cost-controlling"])
@@ -43,3 +43,9 @@ def get_budget_consumption(budget_id: uuid.UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Budget not found")
     result = variance.budget_consumption(db, budget)
     return BudgetConsumptionOut(**result.__dict__)
+
+
+@router.get("/variance/cost-center", response_model=list[CostCenterVarianceRowOut])
+def get_cost_center_variance(company_id: uuid.UUID, fiscal_year: Optional[int] = Query(None), db: Session = Depends(get_db)):
+    rows = variance.cost_center_variance(db, company_id, fiscal_year=fiscal_year)
+    return [CostCenterVarianceRowOut(**row.__dict__) for row in rows]

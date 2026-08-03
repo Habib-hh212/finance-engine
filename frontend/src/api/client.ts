@@ -58,3 +58,35 @@ export function apiUpload<T>(path: string, file: File): Promise<T> {
   form.append("file", file);
   return request<T>(path, { method: "POST", body: form });
 }
+
+// Downloads exports (Excel, etc.) that return raw bytes rather than JSON --
+// fetches with the same auth header as everything else, then triggers a
+// browser save using the filename the server suggested via
+// Content-Disposition, falling back to `fallbackFilename` if that header's
+// missing (e.g. from an error response before the file was ever built).
+export async function apiDownload(path: string, fallbackFilename: string): Promise<void> {
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  const res = await fetch(`${BASE_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      detail = body.detail ?? JSON.stringify(body);
+    } catch {
+      // response wasn't JSON; fall back to statusText
+    }
+    throw new ApiError(res.status, typeof detail === "string" ? detail : JSON.stringify(detail));
+  }
+  const disposition = res.headers.get("Content-Disposition");
+  const match = disposition?.match(/filename="?([^";]+)"?/);
+  const filename = match?.[1] ?? fallbackFilename;
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}

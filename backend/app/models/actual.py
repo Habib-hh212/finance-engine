@@ -25,3 +25,8 @@ class ActualLine(Base):
     # The actual activity/volume for this period (units produced, hours worked,
     # etc.) -- only needed to flex a "flexible" budget line against reality.
     actual_quantity: Mapped[Optional[float]] = mapped_column(Numeric(18, 4), nullable=True)
+    # Optional Cost Center Accounting tag -- which responsibility unit this
+    # spend/revenue belongs to, independent of GL account category.
+    cost_center_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cost_centers.id"), nullable=True
+    )

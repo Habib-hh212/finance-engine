@@ -43,13 +43,15 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Optional
 
+import pandas as pd
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import Budget, BudgetLine, GLAccount, SalesActual
-from app.services import cashflow
+from app.services import cashflow, forecasting
 from app.services.financial_statements import balance_sheet as historical_balance_sheet
+from app.services.financial_statements import monthly_totals_by_category
 
 DAYS_PER_MONTH = 30
 BALANCE_TOLERANCE = 0.01
@@ -129,6 +131,59 @@ def forecast_income_statement(
         rows.append(
             IncomeStatementForecastPeriod(
                 period=month,
+                revenue_forecast=revenue,
+                expense_forecast=expense,
+                net_profit_forecast=round(revenue - expense, 2),
+            )
+        )
+    return rows
+
+
+def forecast_income_statement_from_history(
+    db: Session,
+    company_id,
+    start_period: date,
+    periods: int = 12,
+    model: str = "exponential_smoothing",
+) -> list:
+    """The alternative to `forecast_income_statement`'s driver-based method
+    (sales forecast + approved budget): this projects revenue and expense
+    forward purely from their own historical monthly actuals, the same way
+    someone doing this by hand in Excel would -- pull three or four years
+    of financial statements, then trend-extrapolate. It reuses the exact
+    model registry Sales Forecasting already uses (statistical models give
+    a flat projection off the recent level/average; the ML models --
+    random_forest/gradient_boosting -- are the ones that actually pick up a
+    multi-year growth or decline trend, since they're trained with a time
+    index feature). There's no cap on how much history feeds this: whatever
+    actuals exist, in full, are what it trains on.
+
+    Needs actual revenue AND expense history to mean anything -- if either
+    is empty (nothing uploaded/posted yet for that category), this raises
+    rather than silently forecasting a made-up zero.
+    """
+    start_period = _month_start(start_period)
+
+    revenue_totals = monthly_totals_by_category(db, company_id, "revenue")
+    expense_totals = monthly_totals_by_category(db, company_id, "expense")
+    if not revenue_totals:
+        raise ValueError("No historical revenue actuals to forecast from -- upload historical statements first")
+    if not expense_totals:
+        raise ValueError("No historical expense actuals to forecast from -- upload historical statements first")
+
+    revenue_series = pd.Series(list(revenue_totals.values()), index=list(revenue_totals.keys()))
+    expense_series = pd.Series(list(expense_totals.values()), index=list(expense_totals.keys()))
+
+    revenue_points = forecasting.forecast(revenue_series, model=model, periods=periods)
+    expense_points = forecasting.forecast(expense_series, model=model, periods=periods)
+
+    rows = []
+    for i in range(periods):
+        revenue = revenue_points[i].forecast
+        expense = expense_points[i].forecast
+        rows.append(
+            IncomeStatementForecastPeriod(
+                period=start_period + relativedelta(months=i),
                 revenue_forecast=revenue,
                 expense_forecast=expense,
                 net_profit_forecast=round(revenue - expense, 2),

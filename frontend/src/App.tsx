@@ -20,6 +20,7 @@ const StandardCostingPage = lazy(() =>
 const ScenarioPlanningPage = lazy(() =>
   import("./pages/ScenarioPlanningPage").then((m) => ({ default: m.ScenarioPlanningPage })),
 );
+const ContactPage = lazy(() => import("./pages/ContactPage").then((m) => ({ default: m.ContactPage })));
 
 function PageFallback() {
   return (
@@ -45,6 +46,7 @@ function App() {
               <Route path="/financial-statements" element={<FinancialStatementsPage />} />
               <Route path="/standard-costing" element={<StandardCostingPage />} />
               <Route path="/scenarios" element={<ScenarioPlanningPage />} />
+              <Route path="/contact" element={<ContactPage />} />
             </Routes>
           </Suspense>
         </Layout>

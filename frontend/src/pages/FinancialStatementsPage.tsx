@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
+  Button,
   Card,
   Chip,
+  MenuItem,
   Stack,
   Table,
   TableBody,
@@ -13,10 +15,38 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
+import DownloadIcon from "@mui/icons-material/Download";
+import { EChart } from "../components/EChart";
 import { useCompany } from "../context/CompanyContext";
-import { getBalanceSheet, getIncomeStatement } from "../api/financialStatements";
-import { getBalanceSheetForecast, getIncomeStatementForecast } from "../api/statementForecast";
-import type { AccountAmount, BalanceSheet, BalanceSheetForecastPeriod, IncomeStatement, IncomeStatementForecastPeriod } from "../api/types";
+import {
+  downloadBalanceSheet,
+  downloadIncomeStatement,
+  getBalanceSheet,
+  getIncomeStatement,
+  getIncomeStatementTrend,
+  uploadStatements,
+} from "../api/financialStatements";
+import { downloadStatementForecast, getBalanceSheetForecast, getIncomeStatementForecast } from "../api/statementForecast";
+import type {
+  AccountAmount,
+  BalanceSheet,
+  BalanceSheetForecastPeriod,
+  IncomeStatement,
+  IncomeStatementForecastPeriod,
+  IncomeStatementTrendPoint,
+  StatementForecastMethod,
+} from "../api/types";
+
+const TREND_HISTORY_FLOOR = "2000-01-01";
+
+const TREND_MODELS: { value: string; label: string }[] = [
+  { value: "exponential_smoothing", label: "Exponential Smoothing" },
+  { value: "moving_average", label: "Moving Average" },
+  { value: "weighted_average", label: "Weighted Average" },
+  { value: "random_forest", label: "Random Forest (ML, picks up trend)" },
+  { value: "gradient_boosting", label: "Gradient Boosting (ML, picks up trend)" },
+];
 
 function currentMonthValue() {
   const now = new Date();
@@ -61,18 +91,23 @@ function AccountRows({ lines }: { lines: AccountAmount[] }) {
 
 export function FinancialStatementsPage() {
   const { company } = useCompany();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [startMonth, setStartMonth] = useState(currentMonthValue());
   const [endMonth, setEndMonth] = useState(currentMonthValue());
   const [asOfMonth, setAsOfMonth] = useState(currentMonthValue());
   const [incomeStatement, setIncomeStatement] = useState<IncomeStatement | null>(null);
   const [balanceSheet, setBalanceSheet] = useState<BalanceSheet | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [trend, setTrend] = useState<IncomeStatementTrendPoint[]>([]);
 
   const [forecastStartMonth, setForecastStartMonth] = useState(nextMonthValue());
   const [forecastPeriods, setForecastPeriods] = useState("6");
   const [dsoDays, setDsoDays] = useState("45");
   const [dpoDays, setDpoDays] = useState("30");
   const [collectionLagDays, setCollectionLagDays] = useState("30");
+  const [forecastMethod, setForecastMethod] = useState<StatementForecastMethod>("driver_based");
+  const [trendModel, setTrendModel] = useState("exponential_smoothing");
   const [incomeForecast, setIncomeForecast] = useState<IncomeStatementForecastPeriod[]>([]);
   const [balanceForecast, setBalanceForecast] = useState<BalanceSheetForecastPeriod[]>([]);
   const [forecastError, setForecastError] = useState<string | null>(null);
@@ -81,12 +116,18 @@ export function FinancialStatementsPage() {
     if (!company) return;
     setError(null);
     try {
-      const [is, bs] = await Promise.all([
+      const [is, bs, trendRows] = await Promise.all([
         getIncomeStatement(company.id, `${startMonth}-01`, `${endMonth}-01`),
         getBalanceSheet(company.id, `${asOfMonth}-28`),
+        // Deliberately not tied to the Income Statement's own from/to fields --
+        // the trend chart's whole point is showing whatever multi-year history
+        // exists, so it always asks for everything back to a floor date well
+        // before any real company data would predate.
+        getIncomeStatementTrend(company.id, TREND_HISTORY_FLOOR, `${endMonth}-01`),
       ]);
       setIncomeStatement(is);
       setBalanceSheet(bs);
+      setTrend(trendRows);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load financial statements");
     }
@@ -97,15 +138,17 @@ export function FinancialStatementsPage() {
     setForecastError(null);
     try {
       const [incRows, balRows] = await Promise.all([
-        getIncomeStatementForecast(company.id, `${forecastStartMonth}-01`, Number(forecastPeriods)),
-        getBalanceSheetForecast(
-          company.id,
-          `${forecastStartMonth}-01`,
-          Number(forecastPeriods),
-          Number(dsoDays),
-          Number(dpoDays),
-          Number(collectionLagDays),
-        ),
+        getIncomeStatementForecast(company.id, `${forecastStartMonth}-01`, Number(forecastPeriods), forecastMethod, trendModel),
+        forecastMethod === "historical_trend"
+          ? Promise.resolve([])
+          : getBalanceSheetForecast(
+              company.id,
+              `${forecastStartMonth}-01`,
+              Number(forecastPeriods),
+              Number(dsoDays),
+              Number(dpoDays),
+              Number(collectionLagDays),
+            ),
       ]);
       setIncomeForecast(incRows);
       setBalanceForecast(balRows);
@@ -120,6 +163,36 @@ export function FinancialStatementsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [company?.id]);
 
+  const handleUploadStatements = async (file: File) => {
+    if (!company) return;
+    setUploadMessage(null);
+    setError(null);
+    try {
+      const result = await uploadStatements(company.id, file);
+      setUploadMessage(
+        `Imported ${result.rows_imported} rows (${result.accounts_created} new GL account(s), ${result.cost_centers_created} new cost center(s)).`,
+      );
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    }
+  };
+
+  const trendChartOption = trend.length
+    ? {
+        tooltip: { trigger: "axis" as const },
+        legend: { data: ["Revenue", "Expense", "Net Profit"], top: 0 },
+        grid: { left: 70, right: 30, top: 50, bottom: 40 },
+        xAxis: { type: "category" as const, data: trend.map((p) => p.period) },
+        yAxis: { type: "value" as const },
+        series: [
+          { name: "Revenue", type: "bar" as const, data: trend.map((p) => p.revenue), color: "#2f5d50" },
+          { name: "Expense", type: "bar" as const, data: trend.map((p) => p.expense), color: "#b5533c" },
+          { name: "Net Profit", type: "line" as const, data: trend.map((p) => p.net_profit), color: "#1f2937" },
+        ],
+      }
+    : null;
+
   return (
     <Stack spacing={3}>
       <Typography variant="h5" sx={{ fontWeight: 600 }}>
@@ -131,7 +204,56 @@ export function FinancialStatementsPage() {
       </Typography>
       {error && <Alert severity="error">{error}</Alert>}
 
-      <Typography variant="h6">Income Statement</Typography>
+      <Card variant="outlined">
+        <Stack direction="row" spacing={2} sx={{ alignItems: "center", flexWrap: "wrap", p: 2 }}>
+          <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => fileInputRef.current?.click()}>
+            Upload historical statements
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleUploadStatements(file);
+              e.target.value = "";
+            }}
+          />
+          <Typography variant="caption" color="text.secondary">
+            Excel or CSV columns: gl_account_code, category (revenue/expense/asset/liability/equity), period (YYYY-MM),
+            amount — optional gl_account_name, currency, cost_center_code. Bulk-load however many years of history
+            you have (three, four, more) in one upload; there's no cap on how much it stores.
+          </Typography>
+        </Stack>
+        {uploadMessage && (
+          <Alert severity="success" sx={{ mx: 2, mb: 2 }}>
+            {uploadMessage}
+          </Alert>
+        )}
+      </Card>
+
+      {trendChartOption && (
+        <Card variant="outlined">
+          <Stack sx={{ p: 2 }} spacing={1}>
+            <Typography variant="subtitle1">Revenue / Expense / Net Profit Trend</Typography>
+            <EChart option={trendChartOption} height={320} />
+          </Stack>
+        </Card>
+      )}
+
+      <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
+        <Typography variant="h6">Income Statement</Typography>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<DownloadIcon />}
+          onClick={() => downloadIncomeStatement(company!.id, `${startMonth}-01`, `${endMonth}-01`)}
+          disabled={!company}
+        >
+          Download Excel
+        </Button>
+      </Stack>
       <Stack direction="row" spacing={2} sx={{ alignItems: "center", flexWrap: "wrap" }}>
         <TextField
           label="From"
@@ -200,7 +322,18 @@ export function FinancialStatementsPage() {
         </TableContainer>
       )}
 
-      <Typography variant="h6">Balance Sheet</Typography>
+      <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
+        <Typography variant="h6">Balance Sheet</Typography>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<DownloadIcon />}
+          onClick={() => downloadBalanceSheet(company!.id, `${asOfMonth}-28`)}
+          disabled={!company}
+        >
+          Download Excel
+        </Button>
+      </Stack>
       <TextField
         label="As of"
         type="month"
@@ -268,17 +401,59 @@ export function FinancialStatementsPage() {
         </TableContainer>
       )}
 
-      <Typography variant="h6">Financial Statement Forecast</Typography>
+      <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
+        <Typography variant="h6">Financial Statement Forecast</Typography>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<DownloadIcon />}
+          onClick={() =>
+            downloadStatementForecast(company!.id, `${forecastStartMonth}-01`, Number(forecastPeriods), forecastMethod, trendModel)
+          }
+          disabled={!company}
+        >
+          Download Excel
+        </Button>
+      </Stack>
       <Typography variant="caption" color="text.secondary">
-        Revenue is driven from the existing Sales Forecast; expense from approved budget lines on expense-category GL
-        accounts. Accounts Receivable/Payable are estimated from Days Sales/Payable Outstanding against those same
-        forecasts; Cash reuses the Cash Flow Forecast; Equity rolls forward actual equity by adding forecasted net
-        income each period, assuming no dividends or capital transactions. Every other balance sheet account is
-        carried forward flat — there's no driver for it, so "unchanged" is the honest choice. Tag GL accounts with a
-        forecast role (cash / accounts receivable / accounts payable) on the Budget Planning page to feed this.
+        <strong>Driver-based</strong> (default): revenue from the existing Sales Forecast; expense from approved budget
+        lines on expense-category GL accounts; Balance Sheet lines derived from those via DSO/DPO. <strong>Historical
+        trend</strong>: revenue and expense projected straight from their own multi-year actuals history (the same
+        approach as manually trend-extrapolating a few years of downloaded statements in a spreadsheet) — pick an ML
+        model (Random Forest / Gradient Boosting) if you want it to actually pick up a growth or decline trend rather
+        than a flat projection. Historical trend only produces an Income Statement; the Balance Sheet still needs the
+        driver-based DSO/DPO method. Tag GL accounts with a forecast role (cash / accounts receivable / accounts
+        payable) on the Budget Planning page to feed the driver-based Balance Sheet.
       </Typography>
       {forecastError && <Alert severity="error">{forecastError}</Alert>}
       <Stack direction="row" spacing={2} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+        <TextField
+          select
+          label="Forecast method"
+          size="small"
+          value={forecastMethod}
+          onChange={(e) => setForecastMethod(e.target.value as StatementForecastMethod)}
+          sx={{ minWidth: 180 }}
+        >
+          <MenuItem value="driver_based">Driver-based</MenuItem>
+          <MenuItem value="historical_trend">Historical trend</MenuItem>
+        </TextField>
+        {forecastMethod === "historical_trend" && (
+          <TextField
+            select
+            label="Trend model"
+            size="small"
+            value={trendModel}
+            onChange={(e) => setTrendModel(e.target.value)}
+            sx={{ minWidth: 240 }}
+          >
+            {TREND_MODELS.map((m) => (
+              <MenuItem key={m.value} value={m.value}>
+                {m.label}
+              </MenuItem>
+            ))}
+          </TextField>
+        )}
         <TextField
           label="Start"
           type="month"
@@ -288,16 +463,20 @@ export function FinancialStatementsPage() {
           slotProps={{ inputLabel: { shrink: true } }}
         />
         <TextField label="Periods" type="number" size="small" value={forecastPeriods} onChange={(e) => setForecastPeriods(e.target.value)} sx={{ width: 100 }} />
-        <TextField label="DSO days" type="number" size="small" value={dsoDays} onChange={(e) => setDsoDays(e.target.value)} sx={{ width: 110 }} />
-        <TextField label="DPO days" type="number" size="small" value={dpoDays} onChange={(e) => setDpoDays(e.target.value)} sx={{ width: 110 }} />
-        <TextField
-          label="Collection lag (days)"
-          type="number"
-          size="small"
-          value={collectionLagDays}
-          onChange={(e) => setCollectionLagDays(e.target.value)}
-          sx={{ width: 160 }}
-        />
+        {forecastMethod === "driver_based" && (
+          <>
+            <TextField label="DSO days" type="number" size="small" value={dsoDays} onChange={(e) => setDsoDays(e.target.value)} sx={{ width: 110 }} />
+            <TextField label="DPO days" type="number" size="small" value={dpoDays} onChange={(e) => setDpoDays(e.target.value)} sx={{ width: 110 }} />
+            <TextField
+              label="Collection lag (days)"
+              type="number"
+              size="small"
+              value={collectionLagDays}
+              onChange={(e) => setCollectionLagDays(e.target.value)}
+              sx={{ width: 160 }}
+            />
+          </>
+        )}
         <Chip label="Refresh" onClick={loadForecast} color="primary" clickable />
       </Stack>
 

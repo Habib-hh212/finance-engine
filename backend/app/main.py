@@ -10,6 +10,7 @@ from app.api import (
     cashflow,
     companies,
     controlling,
+    cost_centers,
     financial_statements,
     insights,
     kpis,
@@ -55,6 +56,7 @@ app.include_router(products.router, dependencies=_auth_dep)
 app.include_router(budgets.router, dependencies=_auth_dep)
 app.include_router(cashflow.router, dependencies=_auth_dep)
 app.include_router(controlling.router, dependencies=_auth_dep)
+app.include_router(cost_centers.router, dependencies=_auth_dep)
 app.include_router(profitability.router, dependencies=_auth_dep)
 app.include_router(kpis.router, dependencies=_auth_dep)
 app.include_router(insights.router, dependencies=_auth_dep)

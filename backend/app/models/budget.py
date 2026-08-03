@@ -90,6 +90,10 @@ class BudgetLine(Base):
     # capital: investment appraisal inputs for this line.
     useful_life_years: Mapped[Optional[int]] = mapped_column(nullable=True)
     annual_cash_flow: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
+    # Optional Cost Center Accounting tag -- see ActualLine.cost_center_id.
+    cost_center_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cost_centers.id"), nullable=True
+    )
 
 
 class Approval(Base):

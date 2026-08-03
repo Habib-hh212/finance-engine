@@ -1,5 +1,5 @@
 import { apiGet, apiPost } from "./client";
-import type { ActualLine, BudgetConsumption, VarianceRow } from "./types";
+import type { ActualLine, BudgetConsumption, CostCenterVarianceRow, VarianceRow } from "./types";
 
 export const createActual = (
   companyId: string,
@@ -8,7 +8,16 @@ export const createActual = (
   amount: number,
   description?: string,
   actual_quantity?: number,
-) => apiPost<ActualLine>(`/actuals?company_id=${companyId}`, { gl_account_id, period, amount, description, actual_quantity });
+  cost_center_id?: string,
+) =>
+  apiPost<ActualLine>(`/actuals?company_id=${companyId}`, {
+    gl_account_id,
+    period,
+    amount,
+    description,
+    actual_quantity,
+    cost_center_id,
+  });
 
 export const listActuals = (companyId: string) => apiGet<ActualLine[]>(`/actuals?company_id=${companyId}`);
 
@@ -19,3 +28,8 @@ export const getBudgetVsActual = (companyId: string, fiscalYear?: number) =>
 
 export const getBudgetConsumption = (budgetId: string) =>
   apiGet<BudgetConsumption>(`/variance/budget-consumption/${budgetId}`);
+
+export const getCostCenterVariance = (companyId: string, fiscalYear?: number) =>
+  apiGet<CostCenterVarianceRow[]>(
+    `/variance/cost-center?company_id=${companyId}${fiscalYear ? `&fiscal_year=${fiscalYear}` : ""}`,
+  );

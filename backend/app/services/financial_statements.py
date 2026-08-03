@@ -80,6 +80,25 @@ def _actual_totals_by_account(
     ]
 
 
+def monthly_totals_by_category(db: Session, company_id, category: str) -> dict:
+    """Every actual posted to accounts in this category, summed by month,
+    across the account's *entire* history -- however many years of actuals
+    exist, not just a recent window. This is what the historical-trend
+    forecast method (see statement_forecast.py) trains on, so someone who's
+    bulk-uploaded three or four years of statements gets the full benefit
+    of that history rather than a truncated slice.
+    """
+    account_ids = [
+        a.id for a in db.query(GLAccount).filter(GLAccount.company_id == company_id, GLAccount.category == category).all()
+    ]
+    if not account_ids:
+        return {}
+    totals: dict = defaultdict(float)
+    for line in db.query(ActualLine).filter(ActualLine.company_id == company_id, ActualLine.gl_account_id.in_(account_ids)).all():
+        totals[line.period] += float(line.amount)
+    return dict(sorted(totals.items()))
+
+
 def income_statement(db: Session, company_id, start_period: date, end_period: date) -> IncomeStatement:
     revenue_lines = _actual_totals_by_account(db, company_id, {"revenue"}, start_period, end_period)
     expense_lines = _actual_totals_by_account(db, company_id, {"expense"}, start_period, end_period)
@@ -94,6 +113,33 @@ def income_statement(db: Session, company_id, start_period: date, end_period: da
         total_expense=total_expense,
         net_profit=round(total_revenue - total_expense, 2),
     )
+
+
+@dataclass
+class IncomeStatementTrendPoint:
+    period: date
+    revenue: float
+    expense: float
+    net_profit: float
+
+
+def income_statement_trend(db: Session, company_id, start_period: date, end_period: date) -> list:
+    """Monthly revenue/expense/net-profit series for the Dashboard's trend
+    chart -- the same actuals `income_statement()` totals over a single
+    range, but broken out month by month instead of summed into one total.
+    """
+    revenue_by_month = monthly_totals_by_category(db, company_id, "revenue")
+    expense_by_month = monthly_totals_by_category(db, company_id, "expense")
+    months = sorted(
+        {m for m in revenue_by_month if start_period <= m <= end_period}
+        | {m for m in expense_by_month if start_period <= m <= end_period}
+    )
+    rows = []
+    for month in months:
+        revenue = round(revenue_by_month.get(month, 0.0), 2)
+        expense = round(expense_by_month.get(month, 0.0), 2)
+        rows.append(IncomeStatementTrendPoint(period=month, revenue=revenue, expense=expense, net_profit=round(revenue - expense, 2)))
+    return rows
 
 
 def balance_sheet(db: Session, company_id, as_of: date) -> BalanceSheet:

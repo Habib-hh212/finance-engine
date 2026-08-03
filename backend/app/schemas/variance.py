@@ -42,6 +42,18 @@ class FlexibleVarianceRowOut(BaseModel):
     total_variance: float
 
 
+class CostCenterVarianceRowOut(BaseModel):
+    cost_center_id: uuid.UUID
+    cost_center_code: str
+    cost_center_name: str
+    period: date
+    budget_amount: float
+    actual_amount: float
+    variance_amount: float
+    variance_pct: Optional[float]
+    status: str
+
+
 class CapitalAppraisalRowOut(BaseModel):
     gl_account_id: uuid.UUID
     gl_account_code: str

@@ -38,6 +38,7 @@ import {
   getFlexibleVariance,
   listBudgets,
   listBudgetVersions,
+  listCostCenters,
   listGLAccounts,
   rejectBudget,
   rollForwardBudget,
@@ -53,6 +54,7 @@ import type {
   BudgetType,
   BudgetVersion,
   CapitalAppraisalRow,
+  CostCenter,
   FlexibleVarianceRow,
   GLAccount,
   GLCategory,
@@ -128,6 +130,8 @@ export function BudgetPlanningPage() {
   const [lineVariableRate, setLineVariableRate] = useState("");
   const [lineUsefulLife, setLineUsefulLife] = useState("");
   const [lineAnnualCashFlow, setLineAnnualCashFlow] = useState("");
+  const [lineCostCenterId, setLineCostCenterId] = useState("");
+  const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
 
   const [actorName, setActorName] = useState("");
   const [comment, setComment] = useState("");
@@ -138,9 +142,10 @@ export function BudgetPlanningPage() {
 
   const loadAll = async () => {
     if (!company) return;
-    const [gls, bgs] = await Promise.all([listGLAccounts(company.id), listBudgets(company.id)]);
+    const [gls, bgs, centers] = await Promise.all([listGLAccounts(company.id), listBudgets(company.id), listCostCenters(company.id)]);
     setGlAccounts(gls);
     setBudgets(bgs);
+    setCostCenters(centers);
   };
 
   useEffect(() => {
@@ -218,6 +223,7 @@ export function BudgetPlanningPage() {
           variable_rate_per_unit: selected.type === "flexible" && lineVariableRate ? Number(lineVariableRate) : undefined,
           useful_life_years: selected.type === "capital" && lineUsefulLife ? Number(lineUsefulLife) : undefined,
           annual_cash_flow: selected.type === "capital" && lineAnnualCashFlow ? Number(lineAnnualCashFlow) : undefined,
+          cost_center_id: lineCostCenterId || undefined,
         },
       ]);
       setLineAmount("");
@@ -225,6 +231,7 @@ export function BudgetPlanningPage() {
       setLineVariableRate("");
       setLineUsefulLife("");
       setLineAnnualCashFlow("");
+      setLineCostCenterId("");
     });
 
   const linesEditable = selected?.status === "draft" || selected?.status === "rejected";
@@ -545,6 +552,21 @@ export function BudgetPlanningPage() {
                           />
                         </>
                       )}
+                      <TextField
+                        select
+                        label="Cost Center (optional)"
+                        size="small"
+                        value={lineCostCenterId}
+                        onChange={(e) => setLineCostCenterId(e.target.value)}
+                        sx={{ minWidth: 180 }}
+                      >
+                        <MenuItem value="">— none —</MenuItem>
+                        {costCenters.map((c) => (
+                          <MenuItem key={c.id} value={c.id}>
+                            {c.code} {c.name}
+                          </MenuItem>
+                        ))}
+                      </TextField>
                       <Button
                         variant="outlined"
                         onClick={handleAddLine}

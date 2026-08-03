@@ -17,10 +17,10 @@ import {
   Typography,
 } from "@mui/material";
 import { useCompany } from "../context/CompanyContext";
-import { createActual, getBudgetConsumption, getBudgetVsActual } from "../api/controlling";
-import { listBudgets, listGLAccounts } from "../api/budgets";
+import { createActual, getBudgetConsumption, getBudgetVsActual, getCostCenterVariance } from "../api/controlling";
+import { createCostCenter, listBudgets, listCostCenters, listGLAccounts } from "../api/budgets";
 import { StatusPill } from "../components/StatusPill";
-import type { Budget, BudgetConsumption, GLAccount, VarianceRow } from "../api/types";
+import type { Budget, BudgetConsumption, CostCenter, CostCenterVarianceRow, GLAccount, VarianceRow } from "../api/types";
 
 export function ControllingPage() {
   const { company } = useCompany();
@@ -29,25 +29,35 @@ export function ControllingPage() {
   const [glAccounts, setGlAccounts] = useState<GLAccount[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [consumption, setConsumption] = useState<Record<string, BudgetConsumption>>({});
+  const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
+  const [costCenterVariance, setCostCenterVariance] = useState<CostCenterVarianceRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const [actualGlId, setActualGlId] = useState("");
   const [actualPeriod, setActualPeriod] = useState("");
   const [actualAmount, setActualAmount] = useState("");
   const [actualQuantity, setActualQuantity] = useState("");
+  const [actualCostCenterId, setActualCostCenterId] = useState("");
+
+  const [newCcCode, setNewCcCode] = useState("");
+  const [newCcName, setNewCcName] = useState("");
 
   const load = async () => {
     if (!company) return;
     setError(null);
     try {
-      const [varianceRows, gls, bgs] = await Promise.all([
+      const [varianceRows, gls, bgs, centers, ccVariance] = await Promise.all([
         getBudgetVsActual(company.id, Number(fiscalYear) || undefined),
         listGLAccounts(company.id),
         listBudgets(company.id),
+        listCostCenters(company.id),
+        getCostCenterVariance(company.id, Number(fiscalYear) || undefined),
       ]);
       setRows(varianceRows);
       setGlAccounts(gls);
       setBudgets(bgs.filter((b) => b.status === "approved" && b.fiscal_year === Number(fiscalYear)));
+      setCostCenters(centers);
+      setCostCenterVariance(ccVariance);
 
       const consumptionEntries = await Promise.all(
         bgs
@@ -74,9 +84,18 @@ export function ControllingPage() {
       Number(actualAmount),
       undefined,
       actualQuantity ? Number(actualQuantity) : undefined,
+      actualCostCenterId || undefined,
     );
     setActualAmount("");
     setActualQuantity("");
+    await load();
+  };
+
+  const handleCreateCostCenter = async () => {
+    if (!company || !newCcCode || !newCcName) return;
+    await createCostCenter(company.id, newCcCode, newCcName);
+    setNewCcCode("");
+    setNewCcName("");
     await load();
   };
 
@@ -117,10 +136,49 @@ export function ControllingPage() {
               onChange={(e) => setActualQuantity(e.target.value)}
               helperText="For flexible budgets"
             />
+            <TextField
+              select
+              label="Cost Center (optional)"
+              size="small"
+              value={actualCostCenterId}
+              onChange={(e) => setActualCostCenterId(e.target.value)}
+              sx={{ minWidth: 180 }}
+            >
+              <MenuItem value="">— none —</MenuItem>
+              {costCenters.map((c) => (
+                <MenuItem key={c.id} value={c.id}>
+                  {c.code} {c.name}
+                </MenuItem>
+              ))}
+            </TextField>
             <Button variant="outlined" onClick={handlePostActual} disabled={!actualGlId || !actualPeriod || !actualAmount}>
               Post
             </Button>
           </Stack>
+        </CardContent>
+      </Card>
+
+      <Card variant="outlined">
+        <CardContent>
+          <Typography variant="subtitle2" gutterBottom>
+            Cost Centers
+          </Typography>
+          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", alignItems: "center", mb: costCenters.length ? 1.5 : 0 }}>
+            <TextField label="Code" size="small" value={newCcCode} onChange={(e) => setNewCcCode(e.target.value)} sx={{ width: 140 }} />
+            <TextField label="Name" size="small" value={newCcName} onChange={(e) => setNewCcName(e.target.value)} sx={{ width: 220 }} />
+            <Button variant="outlined" size="small" onClick={handleCreateCostCenter} disabled={!newCcCode || !newCcName}>
+              Add cost center
+            </Button>
+          </Stack>
+          {costCenters.length > 0 && (
+            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+              {costCenters.map((c) => (
+                <Typography key={c.id} variant="caption" sx={{ px: 1, py: 0.5, bgcolor: "action.hover", borderRadius: 1 }}>
+                  {c.code} — {c.name}
+                </Typography>
+              ))}
+            </Stack>
+          )}
         </CardContent>
       </Card>
 
@@ -197,6 +255,51 @@ export function ControllingPage() {
           </Grid>
         )}
       </Grid>
+
+      <Typography variant="h6">Cost Center Variance</Typography>
+      <Typography variant="caption" color="text.secondary">
+        Budget vs. actual grouped by responsibility unit instead of GL account — only lines actually tagged with a
+        cost center (above, or via a bulk statement upload with a cost_center_code column) show up here.
+      </Typography>
+      <TableContainer component={Card} variant="outlined">
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Cost Center</TableCell>
+              <TableCell>Period</TableCell>
+              <TableCell align="right">Budget</TableCell>
+              <TableCell align="right">Actual</TableCell>
+              <TableCell align="right">Variance</TableCell>
+              <TableCell align="right">Variance %</TableCell>
+              <TableCell align="center">Status</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {costCenterVariance.map((r, i) => (
+              <TableRow key={i}>
+                <TableCell>{r.cost_center_code} {r.cost_center_name}</TableCell>
+                <TableCell>{r.period}</TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{r.budget_amount.toLocaleString()}</TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{r.actual_amount.toLocaleString()}</TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{r.variance_amount.toLocaleString()}</TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{r.variance_pct === null ? "—" : `${r.variance_pct}%`}</TableCell>
+                <TableCell align="center">
+                  <StatusPill status={r.status} />
+                </TableCell>
+              </TableRow>
+            ))}
+            {costCenterVariance.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7}>
+                  <Typography variant="body2" color="text.secondary">
+                    No cost-center-tagged budget or actual data for this fiscal year yet.
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Stack>
   );
 }

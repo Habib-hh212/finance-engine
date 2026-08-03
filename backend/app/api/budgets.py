@@ -104,6 +104,7 @@ def add_budget_lines(budget_id: uuid.UUID, lines: list[BudgetLineIn], db: Sessio
             variable_rate_per_unit=line.variable_rate_per_unit,
             useful_life_years=line.useful_life_years,
             annual_cash_flow=line.annual_cash_flow,
+            cost_center_id=line.cost_center_id,
         )
         db.add(record)
         created.append(record)

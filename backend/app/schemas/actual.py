@@ -12,6 +12,7 @@ class ActualLineCreate(BaseModel):
     currency: str = "USD"
     description: Optional[str] = None
     actual_quantity: Optional[float] = None
+    cost_center_id: Optional[uuid.UUID] = None
 
 
 class ActualLineOut(BaseModel):
@@ -22,5 +23,6 @@ class ActualLineOut(BaseModel):
     currency: str
     description: Optional[str]
     actual_quantity: Optional[float] = None
+    cost_center_id: Optional[uuid.UUID] = None
 
     model_config = {"from_attributes": True}

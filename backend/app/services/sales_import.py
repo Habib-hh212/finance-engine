@@ -1,4 +1,5 @@
-"""Parses an uploaded sales CSV and upserts Product/Customer/SalesActual rows.
+"""Parses an uploaded sales CSV or Excel file and upserts
+Product/Customer/SalesActual rows.
 
 Expected columns: sku, product_name, period (YYYY-MM or YYYY-MM-DD),
 quantity, amount, currency, customer_name (optional).
@@ -20,8 +21,8 @@ def _parse_period(value: str) -> date:
     return date(parsed.year, parsed.month, 1)
 
 
-def import_sales_csv(db: Session, company_id: uuid.UUID, file_bytes: bytes) -> dict:
-    df = pd.read_csv(io.BytesIO(file_bytes))
+def import_sales_file(db: Session, company_id: uuid.UUID, file_bytes: bytes, filename: str) -> dict:
+    df = pd.read_csv(io.BytesIO(file_bytes)) if filename.lower().endswith(".csv") else pd.read_excel(io.BytesIO(file_bytes))
     missing = REQUIRED_COLUMNS - set(df.columns)
     if missing:
         raise ValueError(f"CSV is missing required columns: {sorted(missing)}")

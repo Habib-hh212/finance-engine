@@ -48,6 +48,7 @@ class BudgetLineIn(BaseModel):
     variable_rate_per_unit: Optional[float] = None
     useful_life_years: Optional[int] = None
     annual_cash_flow: Optional[float] = None
+    cost_center_id: Optional[uuid.UUID] = None
 
 
 class BudgetLineUpdate(BaseModel):
@@ -59,6 +60,7 @@ class BudgetLineUpdate(BaseModel):
     variable_rate_per_unit: Optional[float] = None
     useful_life_years: Optional[int] = None
     annual_cash_flow: Optional[float] = None
+    cost_center_id: Optional[uuid.UUID] = None
 
 
 class BudgetLineOut(BaseModel):
@@ -71,6 +73,22 @@ class BudgetLineOut(BaseModel):
     variable_rate_per_unit: Optional[float] = None
     useful_life_years: Optional[int] = None
     annual_cash_flow: Optional[float] = None
+    cost_center_id: Optional[uuid.UUID] = None
+
+    model_config = {"from_attributes": True}
+
+
+class CostCenterCreate(BaseModel):
+    code: str
+    name: str
+    manager_name: Optional[str] = None
+
+
+class CostCenterOut(BaseModel):
+    id: uuid.UUID
+    code: str
+    name: str
+    manager_name: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
