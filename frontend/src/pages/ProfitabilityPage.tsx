@@ -17,12 +17,18 @@ import {
   Typography,
 } from "@mui/material";
 import { useCompany } from "../context/CompanyContext";
-import { getProfitabilityByCustomer, getProfitabilityByProduct } from "../api/profitability";
+import { getCustomerChurnRisk, getProfitabilityByCustomer, getProfitabilityByProduct } from "../api/profitability";
 import { createFixedCost, getMarginalCostingSummary, listFixedCosts } from "../api/marginalCosting";
-import type { CustomerProfitability, FixedCost, MarginalCostingSummary, ProductProfitability } from "../api/types";
+import type { CustomerChurnRisk, CustomerProfitability, FixedCost, MarginalCostingSummary, ProductProfitability } from "../api/types";
 
 const fmt = (v: number | null) => (v === null ? "—" : v.toLocaleString());
 const fmtPct = (v: number | null) => (v === null ? "—" : `${v}%`);
+
+const RISK_COLOR: Record<CustomerChurnRisk["risk_level"], "error" | "warning" | "success"> = {
+  high: "error",
+  medium: "warning",
+  low: "success",
+};
 
 function MetricCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -50,6 +56,7 @@ export function ProfitabilityPage() {
   const { company } = useCompany();
   const [byProduct, setByProduct] = useState<ProductProfitability[]>([]);
   const [byCustomer, setByCustomer] = useState<CustomerProfitability[]>([]);
+  const [churnRisk, setChurnRisk] = useState<CustomerChurnRisk[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const [fiscalYear, setFiscalYear] = useState(String(new Date().getFullYear()));
@@ -61,10 +68,11 @@ export function ProfitabilityPage() {
   const loadProfitability = () => {
     if (!company) return;
     setError(null);
-    Promise.all([getProfitabilityByProduct(company.id), getProfitabilityByCustomer(company.id)])
-      .then(([products, customers]) => {
+    Promise.all([getProfitabilityByProduct(company.id), getProfitabilityByCustomer(company.id), getCustomerChurnRisk(company.id)])
+      .then(([products, customers, risk]) => {
         setByProduct(products);
         setByCustomer(customers);
+        setChurnRisk(risk);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load profitability"));
   };
@@ -185,6 +193,51 @@ export function ProfitabilityPage() {
                 <TableCell colSpan={4}>
                   <Typography variant="body2" color="text.secondary">
                     No customer-attributed sales yet.
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Typography variant="h6">Customer Churn Risk</Typography>
+      <Typography variant="caption" color="text.secondary">
+        A statistical recency score, not a trained classifier — this system has no "did they churn" outcome to train on.
+        Risk ratio = months since the customer's last order ÷ their own typical gap between orders. A customer who
+        usually orders every 2 months and hasn't in 5 is flagged; one who always orders once a year and it's been 8
+        months is not.
+      </Typography>
+      <TableContainer component={Card} variant="outlined">
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Customer</TableCell>
+              <TableCell align="right">Last Order</TableCell>
+              <TableCell align="right">Usual Cadence</TableCell>
+              <TableCell align="right">Months Since</TableCell>
+              <TableCell align="right">Revenue</TableCell>
+              <TableCell align="center">Risk</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {churnRisk.map((c) => (
+              <TableRow key={c.customer_id}>
+                <TableCell>{c.name}</TableCell>
+                <TableCell align="right">{c.last_order_period}</TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{c.avg_order_interval_months.toFixed(1)} mo</TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{c.months_since_last_order}</TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(c.total_revenue)}</TableCell>
+                <TableCell align="center">
+                  <Chip size="small" label={c.risk_level} color={RISK_COLOR[c.risk_level]} />
+                </TableCell>
+              </TableRow>
+            ))}
+            {churnRisk.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    No customer has ordered enough times yet to establish a cadence.
                   </Typography>
                 </TableCell>
               </TableRow>

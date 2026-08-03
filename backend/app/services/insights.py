@@ -1,11 +1,18 @@
-"""AI Recommendation Engine v0: rule-based, not ML.
+"""AI Recommendation Engine: rule-based flags (Phase 1) plus statistical
+anomaly detection (Phase 3) -- deliberately still not ML/NLP. A "spike" or
+"drop" here is a z-score against an account's/product's own history, not a
+model trained on labeled outcomes; this system has no such labels to train
+on. That's a real limitation worth being upfront about, not a step toward
+faking intelligence it doesn't have.
 
-Reads the outputs of the three modules already built (variance, budget
-consumption, sales forecasting) and turns the ones worth a human's
-attention into plain-language flags. This mirrors the roadmap's Module 11
-examples ("Manufacturing overhead exceeded budget by 18%") using data this
-Phase 1 slice actually has. A statistical/NLP version is a Phase 3 item —
-this one is closer to a set of named thresholds than intelligence.
+The rule-based flags (budget variance, budget consumption, next-month
+forecast decline) use fixed thresholds uniformly across every account --
+useful, but blind to whether a given account is normally volatile or
+normally stable. The anomaly detectors below complement that: they flag
+whatever is unusual *for that specific account or product*, so a naturally
+noisy account crossing a fixed threshold isn't over-flagged, and a normally
+stable one moving by a smaller amount than the fixed threshold, but still
+far outside its own norm, isn't missed.
 """
 from dataclasses import dataclass
 from typing import Optional
@@ -13,11 +20,15 @@ from typing import Optional
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from app.models import Product, SalesActual
+from app.models import ActualLine, GLAccount, Product, SalesActual
 from app.services import forecasting, variance
 
 FORECAST_DECLINE_WATCH_PCT = 10.0
 FORECAST_DECLINE_ACTION_PCT = 20.0
+
+ANOMALY_Z_YELLOW = 2.0
+ANOMALY_Z_RED = 3.0
+MIN_ANOMALY_HISTORY = 4
 
 
 @dataclass
@@ -125,11 +136,102 @@ def _forecast_decline_insights(db: Session, company_id) -> list:
     return insights
 
 
+def _latest_period_zscore(amounts: list[float]) -> Optional[tuple[float, float]]:
+    """Z-score of the most recent value against the mean/std of everything
+    before it -- population std (divide by n, not n-1), since this describes
+    the account/product's own observed history rather than sampling a wider
+    population. Returns (z, mean) or None if there's not enough history or
+    the history has zero variance (a z-score against no spread is undefined,
+    not "extreme")."""
+    if len(amounts) < MIN_ANOMALY_HISTORY + 1:
+        return None
+    history = amounts[:-1]
+    latest = amounts[-1]
+    mean = sum(history) / len(history)
+    variance_ = sum((x - mean) ** 2 for x in history) / len(history)
+    std = variance_**0.5
+    if std == 0:
+        return None
+    return (latest - mean) / std, mean
+
+
+def _severity_for_z(z: float) -> Optional[str]:
+    if abs(z) >= ANOMALY_Z_RED:
+        return "red"
+    if abs(z) >= ANOMALY_Z_YELLOW:
+        return "yellow"
+    return None
+
+
+def _spend_anomaly_insights(db: Session, company_id) -> list:
+    insights = []
+    accounts = db.query(GLAccount).filter(GLAccount.company_id == company_id).all()
+
+    for account in accounts:
+        actuals = (
+            db.query(ActualLine)
+            .filter(ActualLine.company_id == company_id, ActualLine.gl_account_id == account.id)
+            .order_by(ActualLine.period)
+            .all()
+        )
+        result = _latest_period_zscore([float(a.amount) for a in actuals])
+        if result is None:
+            continue
+        z, mean = result
+        severity = _severity_for_z(z)
+        if severity is None:
+            continue
+
+        period_label = actuals[-1].period.strftime("%B %Y")
+        direction = "spiked" if z > 0 else "dropped"
+        insights.append(
+            Insight(
+                type="spend_anomaly",
+                severity=severity,
+                message=f"{account.name} {direction} to {float(actuals[-1].amount):,.2f} in {period_label} — {abs(z):.1f} standard deviations from its usual {mean:,.2f}.",
+            )
+        )
+    return insights
+
+
+def _sales_anomaly_insights(db: Session, company_id) -> list:
+    insights = []
+    products = db.query(Product).filter(Product.company_id == company_id).all()
+
+    for product in products:
+        actuals = (
+            db.query(SalesActual)
+            .filter(SalesActual.company_id == company_id, SalesActual.product_id == product.id)
+            .order_by(SalesActual.period)
+            .all()
+        )
+        result = _latest_period_zscore([float(a.amount) for a in actuals])
+        if result is None:
+            continue
+        z, mean = result
+        severity = _severity_for_z(z)
+        if severity is None:
+            continue
+
+        period_label = actuals[-1].period.strftime("%B %Y")
+        direction = "spiked" if z > 0 else "dropped"
+        insights.append(
+            Insight(
+                type="sales_anomaly",
+                severity=severity,
+                message=f"{product.name} sales {direction} to {float(actuals[-1].amount):,.2f} in {period_label} — {abs(z):.1f} standard deviations from its usual {mean:,.2f}.",
+            )
+        )
+    return insights
+
+
 def generate_insights(db: Session, company_id, fiscal_year: Optional[int] = None) -> list:
     insights = (
         _budget_variance_insights(db, company_id, fiscal_year)
         + _budget_consumption_insights(db, company_id, fiscal_year)
         + _forecast_decline_insights(db, company_id)
+        + _spend_anomaly_insights(db, company_id)
+        + _sales_anomaly_insights(db, company_id)
     )
     severity_rank = {"red": 0, "yellow": 1}
     return sorted(insights, key=lambda i: severity_rank[i.severity])

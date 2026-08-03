@@ -34,6 +34,21 @@ class ModelComparisonOut(BaseModel):
     mape_by_model: dict[str, Optional[float]]
 
 
+class DemandForecastPointOut(BaseModel):
+    period: date
+    forecast_units: float
+    lower_bound: float
+    upper_bound: float
+
+
+class DemandForecastResponse(BaseModel):
+    company_id: uuid.UUID
+    product_id: uuid.UUID
+    model: str
+    history_periods: int
+    points: list[DemandForecastPointOut]
+
+
 class CompanyCreate(BaseModel):
     name: str
     base_currency: str = "USD"

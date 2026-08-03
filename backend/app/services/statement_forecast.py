@@ -99,7 +99,19 @@ class IncomeStatementForecastPeriod:
     net_profit_forecast: float
 
 
-def forecast_income_statement(db: Session, company_id, start_period: date, periods: int = 12) -> list:
+def forecast_income_statement(
+    db: Session,
+    company_id,
+    start_period: date,
+    periods: int = 12,
+    sales_growth_pct: float = 0.0,
+    expense_growth_pct: float = 0.0,
+) -> list:
+    """`sales_growth_pct`/`expense_growth_pct` are Scenario Planning's what-if
+    levers: a flat percentage adjustment applied uniformly to every forecast
+    month (e.g. sales_growth_pct=10 scales every month's revenue by 1.10).
+    Both default to 0, which reproduces the base-case forecast exactly.
+    """
     start_period = _month_start(start_period)
     months = [start_period + relativedelta(months=i) for i in range(periods)]
 
@@ -107,10 +119,13 @@ def forecast_income_statement(db: Session, company_id, start_period: date, perio
     revenue_by_month = cashflow.forecast_sales_by_month(db, company_id, sales_periods)
     expense_by_month = _approved_expense_budget_by_month(db, company_id)
 
+    sales_factor = 1 + sales_growth_pct / 100
+    expense_factor = 1 + expense_growth_pct / 100
+
     rows = []
     for month in months:
-        revenue = round(revenue_by_month.get(month, 0.0), 2)
-        expense = round(expense_by_month.get(month, 0.0), 2)
+        revenue = round(revenue_by_month.get(month, 0.0) * sales_factor, 2)
+        expense = round(expense_by_month.get(month, 0.0) * expense_factor, 2)
         rows.append(
             IncomeStatementForecastPeriod(
                 period=month,
@@ -137,6 +152,26 @@ class BalanceSheetForecastPeriod:
     difference: float
 
 
+def _scaled_cash_closing_balances(
+    cash_rows: list, opening_balance: float, sales_factor: float, expense_factor: float
+) -> list[float]:
+    """cashflow.build_forecast() computes cash independently of
+    forecast_income_statement(), so a scenario's growth factors have to be
+    re-applied here too -- otherwise the Cash line on a scenario's Balance
+    Sheet would silently stay at the base case while AR/AP/equity moved.
+    Manual cash items (payroll, one-off receivables, etc.) are real entries,
+    not derived from the sales/expense forecast, so they're left unscaled.
+    """
+    balances = []
+    running = opening_balance
+    for row in cash_rows:
+        cash_in = row.cash_in_forecast * sales_factor + row.cash_in_manual
+        cash_out = row.cash_out_budget * expense_factor + row.cash_out_manual
+        running += cash_in - cash_out
+        balances.append(round(running, 2))
+    return balances
+
+
 def forecast_balance_sheet(
     db: Session,
     company_id,
@@ -145,6 +180,8 @@ def forecast_balance_sheet(
     dso_days: float = 45,
     dpo_days: float = 30,
     collection_lag_days: int = 30,
+    sales_growth_pct: float = 0.0,
+    expense_growth_pct: float = 0.0,
 ) -> list:
     start_period = _month_start(start_period)
     as_of_actual = start_period - timedelta(days=1)
@@ -170,18 +207,22 @@ def forecast_balance_sheet(
         2,
     )
 
-    income_rows = forecast_income_statement(db, company_id, start_period, periods)
+    income_rows = forecast_income_statement(
+        db, company_id, start_period, periods, sales_growth_pct=sales_growth_pct, expense_growth_pct=expense_growth_pct
+    )
     cash_rows = cashflow.build_forecast(
         db, company_id, start_period, periods=periods, collection_lag_days=collection_lag_days, opening_balance=cash_base
+    )
+    cash_closing_balances = _scaled_cash_closing_balances(
+        cash_rows, cash_base, 1 + sales_growth_pct / 100, 1 + expense_growth_pct / 100
     )
 
     rows = []
     cumulative_net_income = 0.0
-    for income_row, cash_row in zip(income_rows, cash_rows):
+    for income_row, cash in zip(income_rows, cash_closing_balances):
         cumulative_net_income += income_row.net_profit_forecast
         ar = round(income_row.revenue_forecast / DAYS_PER_MONTH * dso_days, 2)
         ap = round(income_row.expense_forecast / DAYS_PER_MONTH * dpo_days, 2)
-        cash = cash_row.closing_balance
         total_assets = round(ar + cash + other_assets_base, 2)
         total_liabilities = round(ap + other_liabilities_base, 2)
         equity = round(actual.total_equity + cumulative_net_income, 2)

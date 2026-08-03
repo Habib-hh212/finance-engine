@@ -6,6 +6,7 @@ from app.models.exchange_rate import ExchangeRate
 from app.models.marginal_costing import FixedCost
 from app.models.product import Customer, Product
 from app.models.sales import SalesActual, SalesForecast
+from app.models.scenario import Scenario
 from app.models.standard_costing import ProductionActual, StandardCost
 from app.models.user import User
 
@@ -29,4 +30,5 @@ __all__ = [
     "ProductionActual",
     "FixedCost",
     "BudgetVersion",
+    "Scenario",
 ]

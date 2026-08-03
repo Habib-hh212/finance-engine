@@ -21,8 +21,8 @@ import {
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { EChart } from "../components/EChart";
 import { useCompany } from "../context/CompanyContext";
-import { compareForecastModels, getForecast, listProducts, setProductCost, uploadSalesCsv } from "../api/sales";
-import type { ForecastModel, ForecastResponse, ModelComparison, Product } from "../api/types";
+import { compareForecastModels, getDemandForecast, getForecast, listProducts, setProductCost, uploadSalesCsv } from "../api/sales";
+import type { DemandForecastResponse, ForecastModel, ForecastResponse, ModelComparison, Product } from "../api/types";
 
 const MODELS: { value: ForecastModel; label: string }[] = [
   { value: "exponential_smoothing", label: "Exponential Smoothing" },
@@ -49,6 +49,9 @@ export function SalesForecastPage() {
   const [comparison, setComparison] = useState<ModelComparison | null>(null);
   const [comparisonError, setComparisonError] = useState<string | null>(null);
   const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [demand, setDemand] = useState<DemandForecastResponse | null>(null);
+  const [demandError, setDemandError] = useState<string | null>(null);
+  const [demandLoading, setDemandLoading] = useState(false);
 
   const loadProducts = async () => {
     if (!company) return;
@@ -107,7 +110,24 @@ export function SalesForecastPage() {
   useEffect(() => {
     setComparison(null);
     setComparisonError(null);
+    setDemand(null);
+    setDemandError(null);
   }, [productId]);
+
+  const loadDemand = async () => {
+    if (!company || !productId) return;
+    setDemandLoading(true);
+    setDemandError(null);
+    try {
+      const result = await getDemandForecast(company.id, productId, model, periods);
+      setDemand(result);
+    } catch (err) {
+      setDemandError(err instanceof Error ? err.message : "Failed to load demand forecast");
+      setDemand(null);
+    } finally {
+      setDemandLoading(false);
+    }
+  };
 
   const handleUpload = async (file: File) => {
     if (!company) return;
@@ -323,6 +343,48 @@ export function SalesForecastPage() {
                     </TableBody>
                   </Table>
                 </TableContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card variant="outlined">
+            <CardContent>
+              <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }} spacing={1}>
+                <Typography variant="subtitle1">Demand prediction (units)</Typography>
+                <Button variant="outlined" size="small" onClick={loadDemand} disabled={!productId || demandLoading}>
+                  {demandLoading ? "Forecasting…" : "Forecast demand"}
+                </Button>
+              </Stack>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                The same models above, applied to units sold instead of revenue — price mix can move independently of
+                volume, so a demand forecast (for production/inventory planning) is a different question than a revenue
+                forecast, using the currently selected model and periods.
+              </Typography>
+              {demandError && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  {demandError}
+                </Alert>
+              )}
+              {demand && (
+                <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                  {demand.points.map((p) => (
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }} key={p.period}>
+                      <Card variant="outlined">
+                        <CardContent>
+                          <Typography variant="body2" color="text.secondary">
+                            {p.period}
+                          </Typography>
+                          <Typography variant="h6" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                            {p.forecast_units.toLocaleString()} units
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {p.lower_bound.toLocaleString()} – {p.upper_bound.toLocaleString()}
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
               )}
             </CardContent>
           </Card>

@@ -353,3 +353,45 @@ export interface BalanceSheetForecastPeriod {
   is_balanced: boolean;
   difference: number;
 }
+
+export interface Scenario {
+  id: string;
+  name: string;
+  description: string | null;
+  sales_growth_pct: number;
+  expense_growth_pct: number;
+}
+
+export interface ScenarioForecast {
+  scenario: Scenario;
+  base_income_statement: IncomeStatementForecastPeriod[];
+  scenario_income_statement: IncomeStatementForecastPeriod[];
+  base_balance_sheet: BalanceSheetForecastPeriod[];
+  scenario_balance_sheet: BalanceSheetForecastPeriod[];
+}
+
+export interface DemandForecastPoint {
+  period: string;
+  forecast_units: number;
+  lower_bound: number;
+  upper_bound: number;
+}
+
+export interface DemandForecastResponse {
+  company_id: string;
+  product_id: string;
+  model: string;
+  history_periods: number;
+  points: DemandForecastPoint[];
+}
+
+export interface CustomerChurnRisk {
+  customer_id: string;
+  name: string;
+  last_order_period: string;
+  months_since_last_order: number;
+  avg_order_interval_months: number;
+  risk_ratio: number;
+  risk_level: "low" | "medium" | "high";
+  total_revenue: number;
+}

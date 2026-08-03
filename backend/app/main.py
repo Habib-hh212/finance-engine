@@ -17,6 +17,7 @@ from app.api import (
     products,
     profitability,
     sales,
+    scenarios,
     standard_costing,
     statement_forecast,
 )
@@ -61,6 +62,7 @@ app.include_router(financial_statements.router, dependencies=_auth_dep)
 app.include_router(standard_costing.router, dependencies=_auth_dep)
 app.include_router(marginal_costing.router, dependencies=_auth_dep)
 app.include_router(statement_forecast.router, dependencies=_auth_dep)
+app.include_router(scenarios.router, dependencies=_auth_dep)
 
 
 @app.get("/health")
