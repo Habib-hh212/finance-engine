@@ -21,11 +21,13 @@ from app.api import (
 )
 from app.auth import get_current_user
 from app.database import Base, engine
+from app.migrations import apply_additive_columns
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    apply_additive_columns(engine)
     yield
 
 
