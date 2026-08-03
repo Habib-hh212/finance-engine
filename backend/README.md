@@ -1,6 +1,6 @@
 # Backend
 
-FastAPI service covering the full Phase 1 backend scope: email/password auth (JWT), company setup + CSV sales import, Sales Forecasting, Budget Planning with a Manager → Finance → CFO approval chain, a rolling Cash Flow Forecast driven off both, Cost Controlling & Variance (budget vs. actual, budget consumption) with traffic-light status, Profitability Analysis (contribution margin by product/customer), a KPI Dashboard, a rule-based AI Insights engine, and Financial Statements (Income Statement + Balance Sheet) built from posted actuals.
+FastAPI service covering the full Phase 1 backend scope: email/password auth (JWT), company setup + CSV sales import, Sales Forecasting, Budget Planning with a Manager → Finance → CFO approval chain, a rolling Cash Flow Forecast driven off both, Cost Controlling & Variance (budget vs. actual, budget consumption) with traffic-light status, Profitability Analysis (contribution margin by product/customer), a KPI Dashboard, a rule-based AI Insights engine, and Financial Statements (Income Statement + Balance Sheet) built from posted actuals. Phase 2 adds the Full Budget suite (Zero-Based, Flexible, Rolling, Capital), budget line edit/delete + version history on every submit, Standard Costing (8-variance method), and Marginal Costing / CVP analysis (break-even, margin of safety, operating leverage).
 
 ## Auth
 
@@ -68,6 +68,8 @@ Optional: `product_name`, `customer_name`.
 - `POST /budgets/{id}/roll-forward` — **rolling** budgets only, `draft` only: copies the latest period's lines one month forward and drops the oldest period, keeping `rolling_window_months` periods
 - `GET /budgets/{id}/flexible-variance` — **flexible** budgets only: flexes each line's budget to `ActualLine.actual_quantity` and returns static/flexed/actual amounts plus spending variance (actual vs. flexed) and volume variance (flexed vs. static)
 - `GET /budgets/{id}/capital-appraisal` — **capital** budgets only: payback period and simple ROI per line from `amount` (investment), `annual_cash_flow`, and `useful_life_years` — no NPV/IRR discounting
+- `PATCH /budgets/{id}/lines/{line_id}` / `DELETE /budgets/{id}/lines/{line_id}` — edit or remove a line while status is `draft` or `rejected`
+- `GET /budgets/{id}/versions` — every line snapshot taken at each `submit`, oldest first, so a reject → edit → resubmit cycle stays visible
 - `POST /cashflow/items?company_id=<uuid>` — add a manual cash movement (`category`: `receivable_collection` | `payroll` | `vendor_payment` | `tax` | `loan` | `interest` | `other`; `direction`: `in` | `out`)
 - `GET /cashflow/items?company_id=<uuid>` — list manual cash items
 - `GET /cashflow/forecast?company_id=<uuid>&start_period=<YYYY-MM-DD>&periods=12&collection_lag_days=30&opening_balance=0` — rolling cash flow: cash-in from the sales forecast (shifted by the collection lag) + manual inflows, minus cash-out from **approved** expense budgets + manual outflows, with a running balance. Draft/pending budgets are excluded on purpose — they aren't a commitment yet. Assumes all contributing amounts are already in the company's base currency (FX conversion is a Phase 4 item).
@@ -83,3 +85,11 @@ Optional: `product_name`, `customer_name`.
 - `GET /ai/insights?company_id=<uuid>&fiscal_year=<int>` — rule-based (not ML) plain-language flags: budget overruns/shortfalls, unbudgeted spend, budget-consumption warnings, and forecasted sales declines, each with a `red`/`yellow` severity
 - `GET /reports/income-statement?company_id=<uuid>&start_period=<YYYY-MM-DD>&end_period=<YYYY-MM-DD>` — revenue actuals minus expense actuals by GL account, for the period range
 - `GET /reports/balance-sheet?company_id=<uuid>&as_of=<YYYY-MM-DD>` — cumulative balance of `asset`/`liability`/`equity` GL accounts as of a date (sum of every actual posted to that account up to and including that date). Reports `is_balanced` and `difference` rather than assuming assets always equal liabilities + equity — there's no double-entry enforcement, so it only balances if actuals were entered consistently.
+- `POST /standard-costs?company_id=<uuid>` — upsert the standard cost sheet for a product (material price/qty, labor rate/hours, variable + fixed overhead rates, budgeted fixed overhead); a second POST for the same product updates it in place
+- `GET /standard-costs?company_id=<uuid>` — list standard cost sheets
+- `POST /production-actuals?company_id=<uuid>` — post what actually happened in production for a product/period (units produced, actual material/labor/overhead figures)
+- `GET /production-actuals?company_id=<uuid>` — list production actuals
+- `GET /standard-costing/variance?company_id=<uuid>&fiscal_year=<int>` — the 8-variance method (material price/quantity, labor rate/efficiency, variable overhead spending/efficiency, fixed overhead budget/volume) for every product with both a standard and an actual on file; positive is favorable, negative unfavorable
+- `POST /fixed-costs?company_id=<uuid>` — record a fixed (period, not per-unit) cost for a fiscal year
+- `GET /fixed-costs?company_id=<uuid>&fiscal_year=<int>` — list fixed costs
+- `GET /marginal-costing/summary?company_id=<uuid>&fiscal_year=<int>` — CVP analysis: revenue, variable cost, contribution margin (+ ratio), fixed costs, net operating income, break-even revenue, margin of safety (+ %), degree of operating leverage — company-level off the weighted-average contribution margin ratio; products missing `unit_variable_cost` are excluded and listed in `uncosted_product_skus`

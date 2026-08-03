@@ -141,7 +141,7 @@ Per your instruction, this doesn't live as a local-only folder — it's a proper
 | Phase | Modules |
 |---|---|
 | **Phase 1** (this doc) | Sales Forecasting · Budget Planning · Cash Flow Forecast · Cost Controlling & Variance · Profitability Analysis (light) · KPI Dashboard (light) · AI Engine v0 (rule-based) · **Financial Statements: Income Statement & Balance Sheet** (historical/current reporting from actuals — added after the fact; see §6a) |
-| **Phase 2 — Depth & Control** | ✅ Full Budget suite (Zero-Based, Flexible, Rolling, Capital) · Standard Costing + full variance set (material/labor/overhead) · Marginal Costing (break-even, margin of safety, operating leverage) · Approval Workflow with version history · Multi-company consolidation |
+| **Phase 2 — Depth & Control** | ✅ Full Budget suite (Zero-Based, Flexible, Rolling, Capital) · ✅ Standard Costing + full variance set (material/labor/overhead) · ✅ Marginal Costing (break-even, margin of safety, operating leverage) · ✅ Approval Workflow with version history · Multi-company consolidation |
 | **Phase 3 — Intelligence** | ML forecasting (Random Forest, XGBoost, Prophet, LSTM) · Scenario Planning ("what-if" P&L/BS/CF recalculation) · Full AI Recommendation Engine (NLP insights, anomaly detection) · Churn/demand/bad-debt prediction · **Financial Statement Forecasting** (projecting future P&L/Balance Sheet — needs driver linkages: AR from sales forecast + a DSO assumption, AP from budget + a DPO assumption, retained-earnings roll-forward, etc.; this is real financial modeling, not just a report, hence deferred here rather than bundled with §6a) |
 | **Phase 4 — Enterprise hardening** | ERP/system integrations (SAP, Oracle, Dynamics, QuickBooks, Xero, SQL Server) · Azure AD / SSO · Multi-currency scenario engine · Monte Carlo simulation · Full report generation (Excel/PDF/PPT) · ESG metrics · Audit trail everywhere |
 
@@ -170,6 +170,16 @@ One more honesty note on the Balance Sheet specifically: this system doesn't enf
 - **Capital** — a line carries `useful_life_years` and `annual_cash_flow` against its `amount` (the investment). `GET /budgets/{id}/capital-appraisal` returns payback period and simple ROI per line — deliberately no NPV/IRR/discounting, consistent with keeping Phase 2 formulas explainable rather than building a full appraisal engine.
 
 `Budget.type` still mixes "what it covers" with "how it's managed" in one field rather than two orthogonal dimensions — noted in `app/models/budget.py` as a deliberate simplification, revisit only if something actually needs to cross them (e.g. a flexible expense budget).
+
+---
+
+## 6c. Standard Costing, Marginal Costing, Approval Workflow versioning (Phase 2, second slice) — done
+
+Three independent additions:
+
+- **Standard Costing** — a new `StandardCost` sheet per product (material price/qty, labor rate/hours, variable + fixed overhead rates, budgeted fixed overhead) compared against `ProductionActual` postings. `GET /standard-costing/variance` runs the textbook 8-variance method: material price/quantity, labor rate/efficiency, variable overhead spending/efficiency, fixed overhead budget/volume, each signed so positive is favorable (actual under standard) and negative is unfavorable — no separate flag needed. Products without a standard cost set are skipped, not defaulted to zero variance.
+- **Marginal Costing (CVP analysis)** — company-level, not per-product, on purpose: fixed costs (new `FixedCost`, manually entered per fiscal year) are period costs, so allocating them per unit to get a per-product break-even would need an arbitrary allocation key. `GET /marginal-costing/summary` computes break-even revenue, margin of safety, and degree of operating leverage off the weighted-average contribution margin ratio across all *costed* products' revenue — products missing `unit_variable_cost` are excluded from the totals and listed separately (`uncosted_product_skus`), never assumed free.
+- **Approval Workflow version history** — `BudgetLine` gained `PATCH`/`DELETE` endpoints (draft or rejected only; this was a real gap before — `submit_budget` already allowed resubmitting from `rejected`, but there was no way to actually edit a rejected budget's lines first). Every `submit_budget` call now snapshots the current lines into a `BudgetVersion` row before transitioning status, so a reject → edit → resubmit cycle leaves both versions visible via `GET /budgets/{id}/versions`, not just the final state.
 
 ---
 

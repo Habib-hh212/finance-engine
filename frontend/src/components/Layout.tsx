@@ -5,6 +5,7 @@ import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import RuleIcon from "@mui/icons-material/Rule";
 import PieChartIcon from "@mui/icons-material/PieChart";
 import DescriptionIcon from "@mui/icons-material/Description";
+import PrecisionManufacturingIcon from "@mui/icons-material/PrecisionManufacturing";
 import {
   AppBar,
   Box,
@@ -38,6 +39,7 @@ const NAV_ITEMS = [
   { to: "/controlling", label: "Cost Controlling", icon: <RuleIcon /> },
   { to: "/profitability", label: "Profitability", icon: <PieChartIcon /> },
   { to: "/financial-statements", label: "Financial Statements", icon: <DescriptionIcon /> },
+  { to: "/standard-costing", label: "Standard Costing", icon: <PrecisionManufacturingIcon /> },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {

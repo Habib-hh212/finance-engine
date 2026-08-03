@@ -1,9 +1,10 @@
-import { apiGet, apiPost } from "./client";
+import { apiDelete, apiGet, apiPatch, apiPost } from "./client";
 import type {
   Budget,
   BudgetDetail,
   BudgetLine,
   BudgetType,
+  BudgetVersion,
   CapitalAppraisalRow,
   FlexibleVarianceRow,
   GLAccount,
@@ -48,6 +49,14 @@ export const approveBudget = (budgetId: string, actor_name: string, comment?: st
 
 export const rejectBudget = (budgetId: string, actor_name: string, comment?: string) =>
   apiPost<Budget>(`/budgets/${budgetId}/reject`, { actor_name, comment });
+
+export const updateBudgetLine = (budgetId: string, lineId: string, changes: Partial<BudgetLineInput>) =>
+  apiPatch<BudgetLine>(`/budgets/${budgetId}/lines/${lineId}`, changes);
+
+export const deleteBudgetLine = (budgetId: string, lineId: string) =>
+  apiDelete<void>(`/budgets/${budgetId}/lines/${lineId}`);
+
+export const listBudgetVersions = (budgetId: string) => apiGet<BudgetVersion[]>(`/budgets/${budgetId}/versions`);
 
 export const rollForwardBudget = (budgetId: string) => apiPost<Budget>(`/budgets/${budgetId}/roll-forward`);
 

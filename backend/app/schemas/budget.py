@@ -42,6 +42,17 @@ class BudgetLineIn(BaseModel):
     annual_cash_flow: Optional[float] = None
 
 
+class BudgetLineUpdate(BaseModel):
+    gl_account_id: Optional[uuid.UUID] = None
+    period: Optional[date] = None
+    amount: Optional[float] = None
+    currency: Optional[str] = None
+    justification: Optional[str] = None
+    variable_rate_per_unit: Optional[float] = None
+    useful_life_years: Optional[int] = None
+    annual_cash_flow: Optional[float] = None
+
+
 class BudgetLineOut(BaseModel):
     id: uuid.UUID
     gl_account_id: uuid.UUID
@@ -87,3 +98,12 @@ class BudgetDetail(BudgetOut):
 class ApprovalAction(BaseModel):
     actor_name: str
     comment: Optional[str] = None
+
+
+class BudgetVersionOut(BaseModel):
+    id: uuid.UUID
+    version_number: int
+    submitted_at: datetime
+    lines_snapshot: list[dict]
+
+    model_config = {"from_attributes": True}

@@ -14,6 +14,9 @@ const ProfitabilityPage = lazy(() => import("./pages/ProfitabilityPage").then((m
 const FinancialStatementsPage = lazy(() =>
   import("./pages/FinancialStatementsPage").then((m) => ({ default: m.FinancialStatementsPage })),
 );
+const StandardCostingPage = lazy(() =>
+  import("./pages/StandardCostingPage").then((m) => ({ default: m.StandardCostingPage })),
+);
 
 function PageFallback() {
   return (
@@ -37,6 +40,7 @@ function App() {
               <Route path="/controlling" element={<ControllingPage />} />
               <Route path="/profitability" element={<ProfitabilityPage />} />
               <Route path="/financial-statements" element={<FinancialStatementsPage />} />
+              <Route path="/standard-costing" element={<StandardCostingPage />} />
             </Routes>
           </Suspense>
         </Layout>

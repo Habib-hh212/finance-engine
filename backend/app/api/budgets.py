@@ -4,15 +4,17 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Approval, Budget, BudgetLine, GLAccount
-from app.models.budget import DEFAULT_ROLLING_WINDOW_MONTHS
+from app.models import Approval, Budget, BudgetLine, BudgetVersion, GLAccount
+from app.models.budget import DEFAULT_ROLLING_WINDOW_MONTHS, EDITABLE_BUDGET_STATUSES
 from app.schemas.budget import (
     ApprovalAction,
     BudgetCreate,
     BudgetDetail,
     BudgetLineIn,
     BudgetLineOut,
+    BudgetLineUpdate,
     BudgetOut,
+    BudgetVersionOut,
     GLAccountCreate,
     GLAccountOut,
 )
@@ -75,8 +77,8 @@ def get_budget(budget_id: uuid.UUID, db: Session = Depends(get_db)):
 @router.post("/budgets/{budget_id}/lines", response_model=list[BudgetLineOut])
 def add_budget_lines(budget_id: uuid.UUID, lines: list[BudgetLineIn], db: Session = Depends(get_db)):
     budget = _get_budget_or_404(db, budget_id)
-    if budget.status != "draft":
-        raise HTTPException(status_code=409, detail="Budget lines can only be edited while status is 'draft'")
+    if budget.status not in EDITABLE_BUDGET_STATUSES:
+        raise HTTPException(status_code=409, detail="Budget lines can only be edited while status is 'draft' or 'rejected'")
 
     created = []
     for line in lines:
@@ -97,6 +99,36 @@ def add_budget_lines(budget_id: uuid.UUID, lines: list[BudgetLineIn], db: Sessio
     for record in created:
         db.refresh(record)
     return created
+
+
+def _get_line_or_404(db: Session, budget_id: uuid.UUID, line_id: uuid.UUID) -> BudgetLine:
+    line = db.query(BudgetLine).filter(BudgetLine.id == line_id, BudgetLine.budget_id == budget_id).first()
+    if line is None:
+        raise HTTPException(status_code=404, detail="Budget line not found")
+    return line
+
+
+@router.patch("/budgets/{budget_id}/lines/{line_id}", response_model=BudgetLineOut)
+def update_budget_line(budget_id: uuid.UUID, line_id: uuid.UUID, payload: BudgetLineUpdate, db: Session = Depends(get_db)):
+    budget = _get_budget_or_404(db, budget_id)
+    if budget.status not in EDITABLE_BUDGET_STATUSES:
+        raise HTTPException(status_code=409, detail="Budget lines can only be edited while status is 'draft' or 'rejected'")
+    line = _get_line_or_404(db, budget_id, line_id)
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(line, field, value)
+    db.commit()
+    db.refresh(line)
+    return line
+
+
+@router.delete("/budgets/{budget_id}/lines/{line_id}", status_code=204)
+def delete_budget_line(budget_id: uuid.UUID, line_id: uuid.UUID, db: Session = Depends(get_db)):
+    budget = _get_budget_or_404(db, budget_id)
+    if budget.status not in EDITABLE_BUDGET_STATUSES:
+        raise HTTPException(status_code=409, detail="Budget lines can only be edited while status is 'draft' or 'rejected'")
+    line = _get_line_or_404(db, budget_id, line_id)
+    db.delete(line)
+    db.commit()
 
 
 @router.post("/budgets/{budget_id}/submit", response_model=BudgetOut)
@@ -124,6 +156,17 @@ def reject_budget(budget_id: uuid.UUID, payload: ApprovalAction, db: Session = D
         return budget_workflow.reject_budget(db, budget, payload.actor_name, payload.comment)
     except budget_workflow.WorkflowError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.get("/budgets/{budget_id}/versions", response_model=list[BudgetVersionOut])
+def list_budget_versions(budget_id: uuid.UUID, db: Session = Depends(get_db)):
+    _get_budget_or_404(db, budget_id)
+    return (
+        db.query(BudgetVersion)
+        .filter(BudgetVersion.budget_id == budget_id)
+        .order_by(BudgetVersion.version_number)
+        .all()
+    )
 
 
 @router.post("/budgets/{budget_id}/roll-forward", response_model=BudgetOut)

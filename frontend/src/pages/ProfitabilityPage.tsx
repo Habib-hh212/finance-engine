@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import {
   Alert,
+  Button,
   Card,
+  CardContent,
+  Chip,
+  Grid,
   Stack,
   Table,
   TableBody,
@@ -9,14 +13,38 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Typography,
 } from "@mui/material";
 import { useCompany } from "../context/CompanyContext";
 import { getProfitabilityByCustomer, getProfitabilityByProduct } from "../api/profitability";
-import type { CustomerProfitability, ProductProfitability } from "../api/types";
+import { createFixedCost, getMarginalCostingSummary, listFixedCosts } from "../api/marginalCosting";
+import type { CustomerProfitability, FixedCost, MarginalCostingSummary, ProductProfitability } from "../api/types";
 
 const fmt = (v: number | null) => (v === null ? "—" : v.toLocaleString());
 const fmtPct = (v: number | null) => (v === null ? "—" : `${v}%`);
+
+function MetricCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+      <Card variant="outlined">
+        <CardContent>
+          <Typography variant="caption" color="text.secondary">
+            {label}
+          </Typography>
+          <Typography variant="h6" sx={{ fontVariantNumeric: "tabular-nums" }}>
+            {value}
+          </Typography>
+          {hint && (
+            <Typography variant="caption" color="text.secondary">
+              {hint}
+            </Typography>
+          )}
+        </CardContent>
+      </Card>
+    </Grid>
+  );
+}
 
 export function ProfitabilityPage() {
   const { company } = useCompany();
@@ -24,7 +52,13 @@ export function ProfitabilityPage() {
   const [byCustomer, setByCustomer] = useState<CustomerProfitability[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const [fiscalYear, setFiscalYear] = useState(String(new Date().getFullYear()));
+  const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
+  const [summary, setSummary] = useState<MarginalCostingSummary | null>(null);
+  const [fcName, setFcName] = useState("");
+  const [fcAmount, setFcAmount] = useState("");
+
+  const loadProfitability = () => {
     if (!company) return;
     setError(null);
     Promise.all([getProfitabilityByProduct(company.id), getProfitabilityByCustomer(company.id)])
@@ -33,7 +67,46 @@ export function ProfitabilityPage() {
         setByCustomer(customers);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load profitability"));
+  };
+
+  const loadMarginalCosting = async () => {
+    if (!company) return;
+    setError(null);
+    try {
+      const year = Number(fiscalYear);
+      const [fc, s] = await Promise.all([
+        listFixedCosts(company.id, year),
+        getMarginalCostingSummary(company.id, year),
+      ]);
+      setFixedCosts(fc);
+      setSummary(s);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load marginal costing");
+    }
+  };
+
+  useEffect(() => {
+    loadProfitability();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [company?.id]);
+
+  useEffect(() => {
+    loadMarginalCosting();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [company?.id, fiscalYear]);
+
+  const handleAddFixedCost = async () => {
+    if (!company || !fcName || !fcAmount) return;
+    setError(null);
+    try {
+      await createFixedCost(company.id, Number(fiscalYear), fcName, Number(fcAmount));
+      setFcName("");
+      setFcAmount("");
+      await loadMarginalCosting();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add fixed cost");
+    }
+  };
 
   return (
     <Stack spacing={3}>
@@ -119,6 +192,61 @@ export function ProfitabilityPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+        <Typography variant="h6">Marginal Costing (CVP Analysis)</Typography>
+        <TextField label="Fiscal year" size="small" value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)} sx={{ width: 140 }} />
+      </Stack>
+      <Typography variant="caption" color="text.secondary">
+        Company-level, not per-product — fixed costs are period costs, not unitized, so break-even and operating leverage
+        are computed off the weighted-average contribution margin ratio across all costed products' revenue.
+      </Typography>
+
+      {summary && summary.uncosted_product_skus.length > 0 && (
+        <Alert severity="warning">
+          Excluded from these totals (no unit variable cost set): {summary.uncosted_product_skus.join(", ")}
+        </Alert>
+      )}
+
+      {summary && (
+        <Grid container spacing={2}>
+          <MetricCard label="Revenue" value={fmt(summary.revenue)} />
+          <MetricCard label="Contribution Margin" value={fmt(summary.contribution_margin)} hint={fmtPct(summary.contribution_margin_ratio)} />
+          <MetricCard label="Fixed Costs" value={fmt(summary.fixed_costs)} />
+          <MetricCard label="Net Operating Income" value={fmt(summary.net_operating_income)} />
+          <MetricCard label="Break-Even Revenue" value={fmt(summary.break_even_revenue)} />
+          <MetricCard label="Margin of Safety" value={fmt(summary.margin_of_safety)} hint={fmtPct(summary.margin_of_safety_pct)} />
+          <MetricCard label="Degree of Operating Leverage" value={summary.degree_of_operating_leverage === null ? "—" : summary.degree_of_operating_leverage.toFixed(2)} />
+        </Grid>
+      )}
+
+      <Card variant="outlined">
+        <CardContent>
+          <Typography variant="subtitle2" gutterBottom>
+            Fixed Costs — FY{fiscalYear}
+          </Typography>
+          <Stack spacing={1}>
+            {fixedCosts.map((f) => (
+              <Stack key={f.id} direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                <Typography variant="body2" sx={{ flexGrow: 1 }}>{f.name}</Typography>
+                <Chip size="small" label={`${f.amount.toLocaleString()} ${f.currency}`} />
+              </Stack>
+            ))}
+            {fixedCosts.length === 0 && (
+              <Typography variant="body2" color="text.secondary">
+                No fixed costs entered for this fiscal year yet.
+              </Typography>
+            )}
+          </Stack>
+          <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap", alignItems: "center" }}>
+            <TextField label="Name" size="small" value={fcName} onChange={(e) => setFcName(e.target.value)} />
+            <TextField label="Amount" type="number" size="small" value={fcAmount} onChange={(e) => setFcAmount(e.target.value)} />
+            <Button variant="outlined" size="small" onClick={handleAddFixedCost} disabled={!fcName || !fcAmount}>
+              Add fixed cost
+            </Button>
+          </Stack>
+        </CardContent>
+      </Card>
     </Stack>
   );
 }

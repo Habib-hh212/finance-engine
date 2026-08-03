@@ -1,8 +1,8 @@
 import uuid
 from datetime import date, datetime
-from typing import Optional
+from typing import Any, Optional
 
-from sqlalchemy import Date, DateTime, ForeignKey, Numeric, String, Text
+from sqlalchemy import JSON, Date, DateTime, ForeignKey, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -21,6 +21,13 @@ class BudgetStatus:
     PENDING_CFO = "pending_cfo"
     APPROVED = "approved"
     REJECTED = "rejected"
+
+
+# Lines can be added/edited/deleted in these two statuses: while still a
+# draft, and after a rejection (so the rejection can actually be acted on
+# before resubmitting) -- matches submit_budget, which allows submission
+# from either state.
+EDITABLE_BUDGET_STATUSES = {BudgetStatus.DRAFT, BudgetStatus.REJECTED}
 
 
 class GLAccount(Base):
@@ -88,3 +95,19 @@ class Approval(Base):
     actor_name: Mapped[str] = mapped_column(String(255), nullable=False)
     comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     acted_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class BudgetVersion(Base):
+    """A snapshot of a budget's lines taken every time it's submitted for
+    approval. This is what makes "version history" real: reject a budget,
+    edit its lines, resubmit, and the prior line values are still visible
+    here rather than just overwritten in place.
+    """
+
+    __tablename__ = "budget_versions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    budget_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("budgets.id"), nullable=False)
+    version_number: Mapped[int] = mapped_column(nullable=False)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    lines_snapshot: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)

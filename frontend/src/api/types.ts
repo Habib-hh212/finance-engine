@@ -242,3 +242,79 @@ export interface BalanceSheet {
   is_balanced: boolean;
   difference: number;
 }
+
+export interface StandardCost {
+  id: string;
+  product_id: string;
+  material_std_price: number;
+  material_std_qty: number;
+  labor_std_rate: number;
+  labor_std_hours: number;
+  variable_overhead_std_rate: number;
+  fixed_overhead_std_rate: number;
+  fixed_overhead_budgeted: number;
+}
+
+export interface ProductionActual {
+  id: string;
+  product_id: string;
+  period: string;
+  units_produced: number;
+  material_actual_price: number;
+  material_actual_qty: number;
+  labor_actual_rate: number;
+  labor_actual_hours: number;
+  actual_variable_overhead: number;
+  actual_fixed_overhead: number;
+}
+
+export interface StandardCostVariance {
+  product_id: string;
+  product_sku: string;
+  product_name: string;
+  period: string;
+  material_price_variance: number;
+  material_quantity_variance: number;
+  material_total_variance: number;
+  labor_rate_variance: number;
+  labor_efficiency_variance: number;
+  labor_total_variance: number;
+  variable_overhead_spending_variance: number;
+  variable_overhead_efficiency_variance: number;
+  variable_overhead_total_variance: number;
+  fixed_overhead_budget_variance: number;
+  fixed_overhead_volume_variance: number;
+  fixed_overhead_total_variance: number;
+  total_cost_variance: number;
+}
+
+export interface FixedCost {
+  id: string;
+  fiscal_year: number;
+  name: string;
+  amount: number;
+  currency: string;
+  category: string | null;
+}
+
+export interface MarginalCostingSummary {
+  fiscal_year: number;
+  revenue: number;
+  variable_cost: number;
+  contribution_margin: number;
+  contribution_margin_ratio: number | null;
+  fixed_costs: number;
+  net_operating_income: number;
+  break_even_revenue: number | null;
+  margin_of_safety: number | null;
+  margin_of_safety_pct: number | null;
+  degree_of_operating_leverage: number | null;
+  uncosted_product_skus: string[];
+}
+
+export interface BudgetVersion {
+  id: string;
+  version_number: number;
+  submitted_at: string;
+  lines_snapshot: Record<string, unknown>[];
+}

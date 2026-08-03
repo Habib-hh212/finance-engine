@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -7,6 +10,7 @@ import {
   CardContent,
   Chip,
   Grid,
+  IconButton,
   MenuItem,
   Stack,
   Table,
@@ -17,8 +21,10 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { AgGridReact } from "ag-grid-react";
-import type { ColDef } from "ag-grid-community";
+import type { ColDef, ValueSetterParams } from "ag-grid-community";
 import { AllCommunityModule, ModuleRegistry, themeQuartz } from "ag-grid-community";
 import { useCompany } from "../context/CompanyContext";
 import {
@@ -26,20 +32,25 @@ import {
   approveBudget,
   createBudget,
   createGLAccount,
+  deleteBudgetLine,
   getBudget,
   getCapitalAppraisal,
   getFlexibleVariance,
   listBudgets,
+  listBudgetVersions,
   listGLAccounts,
   rejectBudget,
   rollForwardBudget,
   submitBudget,
+  updateBudgetLine,
 } from "../api/budgets";
 import type {
   Budget,
   BudgetDetail,
+  BudgetLine,
   BudgetStatus,
   BudgetType,
+  BudgetVersion,
   CapitalAppraisalRow,
   FlexibleVarianceRow,
   GLAccount,
@@ -78,6 +89,19 @@ const BUDGET_TYPE_LABEL: Record<BudgetType, string> = {
 
 const fmt = (n: number | null) => (n === null || n === undefined ? "—" : n.toLocaleString(undefined, { maximumFractionDigits: 2 }));
 
+interface DeleteLineCellRendererProps {
+  data: BudgetLine;
+  context: { onDelete: (lineId: string) => void };
+}
+
+function DeleteLineCellRenderer({ data, context }: DeleteLineCellRendererProps) {
+  return (
+    <IconButton size="small" onClick={() => context.onDelete(data.id)} aria-label="Delete line">
+      <DeleteIcon fontSize="small" />
+    </IconButton>
+  );
+}
+
 export function BudgetPlanningPage() {
   const { company } = useCompany();
   const [glAccounts, setGlAccounts] = useState<GLAccount[]>([]);
@@ -107,6 +131,7 @@ export function BudgetPlanningPage() {
 
   const [flexVariance, setFlexVariance] = useState<FlexibleVarianceRow[]>([]);
   const [capitalRows, setCapitalRows] = useState<CapitalAppraisalRow[]>([]);
+  const [versions, setVersions] = useState<BudgetVersion[]>([]);
 
   const loadAll = async () => {
     if (!company) return;
@@ -126,6 +151,7 @@ export function BudgetPlanningPage() {
     setSelected(detail);
     setFlexVariance(detail.type === "flexible" ? await getFlexibleVariance(id) : []);
     setCapitalRows(detail.type === "capital" ? await getCapitalAppraisal(id) : []);
+    setVersions(await listBudgetVersions(id));
   };
 
   const glNameFor = useMemo(() => {
@@ -188,25 +214,84 @@ export function BudgetPlanningPage() {
       setLineAnnualCashFlow("");
     });
 
+  const linesEditable = selected?.status === "draft" || selected?.status === "rejected";
+
+  const handleDeleteLine = (lineId: string) => {
+    if (!selected) return;
+    runAction(() => deleteBudgetLine(selected.id, lineId));
+  };
+
+  const handleCellValueChanged = (field: keyof BudgetLine) => (params: ValueSetterParams) => {
+    if (!selected) return true;
+    const raw = params.newValue;
+    const numericFields = new Set(["amount", "variable_rate_per_unit", "useful_life_years", "annual_cash_flow"]);
+    const value = numericFields.has(field) ? (raw === "" || raw === null || raw === undefined ? undefined : Number(raw)) : raw;
+    (params.data as BudgetLine)[field] = value as never;
+    runAction(() => updateBudgetLine(selected.id, params.data.id, { [field]: value }));
+    return true;
+  };
+
   const columnDefs: ColDef[] = useMemo(() => {
     const base: ColDef[] = [
       { field: "gl_account_id", headerName: "GL Account", valueFormatter: (p) => glNameFor(p.value), flex: 2 },
       { field: "period", headerName: "Period", flex: 1 },
-      { field: "amount", headerName: "Amount", flex: 1, valueFormatter: (p) => Number(p.value).toLocaleString() },
+      {
+        field: "amount",
+        headerName: "Amount",
+        flex: 1,
+        valueFormatter: (p) => Number(p.value).toLocaleString(),
+        editable: linesEditable,
+        valueSetter: handleCellValueChanged("amount"),
+      },
       { field: "currency", headerName: "Currency", flex: 1 },
     ];
     if (selected?.type === "zero_based") {
-      base.push({ field: "justification", headerName: "Justification", flex: 2 });
+      base.push({
+        field: "justification",
+        headerName: "Justification",
+        flex: 2,
+        editable: linesEditable,
+        valueSetter: handleCellValueChanged("justification"),
+      });
     }
     if (selected?.type === "flexible") {
-      base.push({ field: "variable_rate_per_unit", headerName: "Rate/unit", flex: 1 });
+      base.push({
+        field: "variable_rate_per_unit",
+        headerName: "Rate/unit",
+        flex: 1,
+        editable: linesEditable,
+        valueSetter: handleCellValueChanged("variable_rate_per_unit"),
+      });
     }
     if (selected?.type === "capital") {
-      base.push({ field: "useful_life_years", headerName: "Useful life (yrs)", flex: 1 });
-      base.push({ field: "annual_cash_flow", headerName: "Annual cash flow", flex: 1 });
+      base.push({
+        field: "useful_life_years",
+        headerName: "Useful life (yrs)",
+        flex: 1,
+        editable: linesEditable,
+        valueSetter: handleCellValueChanged("useful_life_years"),
+      });
+      base.push({
+        field: "annual_cash_flow",
+        headerName: "Annual cash flow",
+        flex: 1,
+        editable: linesEditable,
+        valueSetter: handleCellValueChanged("annual_cash_flow"),
+      });
+    }
+    if (linesEditable) {
+      base.push({
+        headerName: "",
+        colId: "_delete",
+        width: 56,
+        sortable: false,
+        filter: false,
+        cellRenderer: DeleteLineCellRenderer,
+      });
     }
     return base;
-  }, [selected?.type, glNameFor]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.type, selected?.status, glNameFor]);
 
   return (
     <Stack spacing={3}>
@@ -341,7 +426,7 @@ export function BudgetPlanningPage() {
                 </CardContent>
               </Card>
 
-              {selected.status === "draft" && (
+              {linesEditable && (
                 <Card variant="outlined">
                   <CardContent>
                     <Typography variant="subtitle2" gutterBottom>
@@ -424,7 +509,13 @@ export function BudgetPlanningPage() {
               )}
 
               <Box sx={{ height: 260, width: "100%" }}>
-                <AgGridReact rowData={selected.lines} columnDefs={columnDefs} theme={themeQuartz} />
+                <AgGridReact
+                  rowData={selected.lines}
+                  columnDefs={columnDefs}
+                  theme={themeQuartz}
+                  getRowId={(p) => p.data.id}
+                  context={{ onDelete: handleDeleteLine }}
+                />
               </Box>
 
               {selected.type === "rolling" && selected.status === "draft" && (
@@ -576,6 +667,63 @@ export function BudgetPlanningPage() {
                   )}
                 </CardContent>
               </Card>
+
+              {versions.length > 0 && (
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Version History
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                      A snapshot is captured every time this budget is submitted — reject, edit, resubmit, and both
+                      versions stay visible here.
+                    </Typography>
+                    {versions
+                      .slice()
+                      .reverse()
+                      .map((v) => (
+                        <Accordion key={v.id} disableGutters>
+                          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                            <Typography variant="body2">
+                              Version {v.version_number} — submitted {new Date(v.submitted_at).toLocaleString()}
+                            </Typography>
+                          </AccordionSummary>
+                          <AccordionDetails>
+                            <Table size="small">
+                              <TableHead>
+                                <TableRow>
+                                  <TableCell>GL Account</TableCell>
+                                  <TableCell>Period</TableCell>
+                                  <TableCell align="right">Amount</TableCell>
+                                  <TableCell>Currency</TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {v.lines_snapshot.map((line, i) => (
+                                  <TableRow key={i}>
+                                    <TableCell>{glNameFor(String(line.gl_account_id))}</TableCell>
+                                    <TableCell>{String(line.period)}</TableCell>
+                                    <TableCell align="right">{Number(line.amount).toLocaleString()}</TableCell>
+                                    <TableCell>{String(line.currency)}</TableCell>
+                                  </TableRow>
+                                ))}
+                                {v.lines_snapshot.length === 0 && (
+                                  <TableRow>
+                                    <TableCell colSpan={4}>
+                                      <Typography variant="body2" color="text.secondary">
+                                        No lines in this version.
+                                      </Typography>
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </TableBody>
+                            </Table>
+                          </AccordionDetails>
+                        </Accordion>
+                      ))}
+                  </CardContent>
+                </Card>
+              )}
             </Stack>
           )}
         </Grid>
