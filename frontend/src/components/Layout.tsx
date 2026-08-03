@@ -4,6 +4,7 @@ import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import RuleIcon from "@mui/icons-material/Rule";
 import PieChartIcon from "@mui/icons-material/PieChart";
+import DescriptionIcon from "@mui/icons-material/Description";
 import {
   AppBar,
   Box,
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
   { to: "/cash-flow", label: "Cash Flow", icon: <WaterDropIcon /> },
   { to: "/controlling", label: "Cost Controlling", icon: <RuleIcon /> },
   { to: "/profitability", label: "Profitability", icon: <PieChartIcon /> },
+  { to: "/financial-statements", label: "Financial Statements", icon: <DescriptionIcon /> },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {

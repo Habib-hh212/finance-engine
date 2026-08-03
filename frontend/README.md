@@ -1,6 +1,6 @@
 # Frontend
 
-React + TypeScript + Material UI, covering all Phase 1 backend modules: Dashboard (KPIs + AI Insights), Sales Forecasting, Budget Planning, Cash Flow Forecast, Cost Controlling & Variance, and Profitability.
+React + TypeScript + Material UI, covering all Phase 1 backend modules: Dashboard (KPIs + AI Insights), Sales Forecasting, Budget Planning, Cash Flow Forecast, Cost Controlling & Variance, Profitability, and Financial Statements (Income Statement + Balance Sheet).
 
 ## Run
 

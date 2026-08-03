@@ -1,6 +1,6 @@
 # Backend
 
-FastAPI service covering the full Phase 1 backend scope: email/password auth (JWT), company setup + CSV sales import, Sales Forecasting, Budget Planning with a Manager → Finance → CFO approval chain, a rolling Cash Flow Forecast driven off both, Cost Controlling & Variance (budget vs. actual, budget consumption) with traffic-light status, Profitability Analysis (contribution margin by product/customer), a KPI Dashboard, and a rule-based AI Insights engine.
+FastAPI service covering the full Phase 1 backend scope: email/password auth (JWT), company setup + CSV sales import, Sales Forecasting, Budget Planning with a Manager → Finance → CFO approval chain, a rolling Cash Flow Forecast driven off both, Cost Controlling & Variance (budget vs. actual, budget consumption) with traffic-light status, Profitability Analysis (contribution margin by product/customer), a KPI Dashboard, a rule-based AI Insights engine, and Financial Statements (Income Statement + Balance Sheet) built from posted actuals.
 
 ## Auth
 
@@ -57,7 +57,7 @@ Optional: `product_name`, `customer_name`.
 - `GET /companies` — list companies
 - `POST /sales/upload?company_id=<uuid>` — upload a sales CSV (multipart `file`)
 - `GET /sales/forecast?company_id=<uuid>&product_id=<uuid>&model=<model>&periods=<n>` — forecast the next `n` months
-- `POST /gl-accounts?company_id=<uuid>` — create a GL account (`category`: `revenue` | `expense`)
+- `POST /gl-accounts?company_id=<uuid>` — create a GL account (`category`: `revenue` | `expense` | `asset` | `liability` | `equity`)
 - `GET /gl-accounts?company_id=<uuid>` — list GL accounts
 - `POST /budgets?company_id=<uuid>` — create a budget (`type`: `revenue` | `expense` | `master`), starts in `draft`
 - `GET /budgets?company_id=<uuid>` / `GET /budgets/{id}` — list / fetch a budget (detail includes lines + approval history)
@@ -78,3 +78,5 @@ Optional: `product_name`, `customer_name`.
 - `GET /profitability/by-customer?company_id=<uuid>` — revenue and contribution margin per customer, aggregated across whatever products they bought
 - `GET /kpis?company_id=<uuid>&fiscal_year=<int>&cash_start_period=<YYYY-MM-DD>&cash_opening_balance=0` — four KPIs pulled from the other modules: `gross_margin_pct` (from Profitability), `budget_utilization_pct` (from approved budgets), `forecast_accuracy_mape` (a real walk-forward backtest of the sales forecast model against history — not a stub), `cash_runway_months` (from Cash Flow Forecast; `null` if it omits `cash_start_period` or never goes negative in the 12-month window)
 - `GET /ai/insights?company_id=<uuid>&fiscal_year=<int>` — rule-based (not ML) plain-language flags: budget overruns/shortfalls, unbudgeted spend, budget-consumption warnings, and forecasted sales declines, each with a `red`/`yellow` severity
+- `GET /reports/income-statement?company_id=<uuid>&start_period=<YYYY-MM-DD>&end_period=<YYYY-MM-DD>` — revenue actuals minus expense actuals by GL account, for the period range
+- `GET /reports/balance-sheet?company_id=<uuid>&as_of=<YYYY-MM-DD>` — cumulative balance of `asset`/`liability`/`equity` GL accounts as of a date (sum of every actual posted to that account up to and including that date). Reports `is_balanced` and `difference` rather than assuming assets always equal liabilities + equity — there's no double-entry enforcement, so it only balances if actuals were entered consistently.

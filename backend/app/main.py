@@ -4,7 +4,19 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, budgets, cashflow, companies, controlling, insights, kpis, products, profitability, sales
+from app.api import (
+    auth,
+    budgets,
+    cashflow,
+    companies,
+    controlling,
+    financial_statements,
+    insights,
+    kpis,
+    products,
+    profitability,
+    sales,
+)
 from app.auth import get_current_user
 from app.database import Base, engine
 
@@ -40,6 +52,7 @@ app.include_router(controlling.router, dependencies=_auth_dep)
 app.include_router(profitability.router, dependencies=_auth_dep)
 app.include_router(kpis.router, dependencies=_auth_dep)
 app.include_router(insights.router, dependencies=_auth_dep)
+app.include_router(financial_statements.router, dependencies=_auth_dep)
 
 
 @app.get("/health")

@@ -11,6 +11,9 @@ const BudgetPlanningPage = lazy(() => import("./pages/BudgetPlanningPage").then(
 const CashFlowPage = lazy(() => import("./pages/CashFlowPage").then((m) => ({ default: m.CashFlowPage })));
 const ControllingPage = lazy(() => import("./pages/ControllingPage").then((m) => ({ default: m.ControllingPage })));
 const ProfitabilityPage = lazy(() => import("./pages/ProfitabilityPage").then((m) => ({ default: m.ProfitabilityPage })));
+const FinancialStatementsPage = lazy(() =>
+  import("./pages/FinancialStatementsPage").then((m) => ({ default: m.FinancialStatementsPage })),
+);
 
 function PageFallback() {
   return (
@@ -33,6 +36,7 @@ function App() {
               <Route path="/cash-flow" element={<CashFlowPage />} />
               <Route path="/controlling" element={<ControllingPage />} />
               <Route path="/profitability" element={<ProfitabilityPage />} />
+              <Route path="/financial-statements" element={<FinancialStatementsPage />} />
             </Routes>
           </Suspense>
         </Layout>

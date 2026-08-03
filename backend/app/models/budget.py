@@ -30,7 +30,7 @@ class GLAccount(Base):
     company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     code: Mapped[str] = mapped_column(String(20), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    category: Mapped[str] = mapped_column(String(20), nullable=False)  # revenue | expense
+    category: Mapped[str] = mapped_column(String(20), nullable=False)  # revenue | expense | asset | liability | equity
 
 
 class Budget(Base):

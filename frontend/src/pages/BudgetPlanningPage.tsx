@@ -166,6 +166,9 @@ export function BudgetPlanningPage() {
                   <TextField select label="Category" size="small" value={glCategory} onChange={(e) => setGlCategory(e.target.value as GLCategory)}>
                     <MenuItem value="revenue">Revenue</MenuItem>
                     <MenuItem value="expense">Expense</MenuItem>
+                    <MenuItem value="asset">Asset</MenuItem>
+                    <MenuItem value="liability">Liability</MenuItem>
+                    <MenuItem value="equity">Equity</MenuItem>
                   </TextField>
                   <Button variant="outlined" size="small" onClick={handleCreateGl} disabled={!glCode || !glName}>
                     Add GL account

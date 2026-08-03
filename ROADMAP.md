@@ -140,10 +140,23 @@ Per your instruction, this doesn't live as a local-only folder — it's a proper
 
 | Phase | Modules |
 |---|---|
-| **Phase 1** (this doc) | Sales Forecasting · Budget Planning · Cash Flow Forecast · Cost Controlling & Variance · Profitability Analysis (light) · KPI Dashboard (light) · AI Engine v0 (rule-based) |
+| **Phase 1** (this doc) | Sales Forecasting · Budget Planning · Cash Flow Forecast · Cost Controlling & Variance · Profitability Analysis (light) · KPI Dashboard (light) · AI Engine v0 (rule-based) · **Financial Statements: Income Statement & Balance Sheet** (historical/current reporting from actuals — added after the fact; see §6a) |
 | **Phase 2 — Depth & Control** | Standard Costing + full variance set (material/labor/overhead) · Marginal Costing (break-even, margin of safety, operating leverage) · Full Budget suite (Zero-Based, Flexible, Rolling, Capital) · Approval Workflow with version history · Multi-company consolidation |
-| **Phase 3 — Intelligence** | ML forecasting (Random Forest, XGBoost, Prophet, LSTM) · Scenario Planning ("what-if" P&L/BS/CF recalculation) · Full AI Recommendation Engine (NLP insights, anomaly detection) · Churn/demand/bad-debt prediction |
+| **Phase 3 — Intelligence** | ML forecasting (Random Forest, XGBoost, Prophet, LSTM) · Scenario Planning ("what-if" P&L/BS/CF recalculation) · Full AI Recommendation Engine (NLP insights, anomaly detection) · Churn/demand/bad-debt prediction · **Financial Statement Forecasting** (projecting future P&L/Balance Sheet — needs driver linkages: AR from sales forecast + a DSO assumption, AP from budget + a DPO assumption, retained-earnings roll-forward, etc.; this is real financial modeling, not just a report, hence deferred here rather than bundled with §6a) |
 | **Phase 4 — Enterprise hardening** | ERP/system integrations (SAP, Oracle, Dynamics, QuickBooks, Xero, SQL Server) · Azure AD / SSO · Multi-currency scenario engine · Monte Carlo simulation · Full report generation (Excel/PDF/PPT) · ESG metrics · Audit trail everywhere |
+
+---
+
+## 6a. Financial Statements — the piece that was missing
+
+Your original suggestion list included Module 7 (Financial Forecast: Revenue, Gross Profit, EBITDA, EBIT, Net Profit, Assets, Liabilities, Equity, Cash, Debt, Inventory, Working Capital) and Module 12 (Reports: Income Statement, Balance Sheet, Trial Balance, etc.). Both got compressed into vague references ("full report generation" in Phase 4) when this roadmap was first written, and neither ever became a real backlog line — that was a gap, not a deliberate cut.
+
+Splitting it into two honestly different problems:
+
+- **Reporting** (what actually happened, from data already in the system) — an Income Statement is just revenue actuals minus expense actuals by GL account for a period; a Balance Sheet is the running balance of asset/liability/equity accounts as of a date. Both are buildable *today* from the existing `ActualLine`/`GLAccount` tables plus one addition (GL accounts need `asset`/`liability`/`equity` categories, not just `revenue`/`expense`). This is what's being added to Phase 1 now.
+- **Forecasting** (projecting the P&L/Balance Sheet *forward*) — needs real driver linkages that don't exist yet (accounts receivable driven by the sales forecast + a collection-days assumption, accounts payable driven by the budget + a payment-days assumption, retained earnings rolling forward period to period). That's a genuine financial-modeling exercise, not an extension of the reporting endpoints, so it's sequenced into Phase 3 instead of bolted onto this.
+
+One more honesty note on the Balance Sheet specifically: this system doesn't enforce double-entry bookkeeping (no linked debit/credit postings), so "assets = liabilities + equity" isn't guaranteed to balance — it'll only balance if whoever is entering actuals enters them consistently. The Balance Sheet report will show whether it balances, not assume it does.
 
 ---
 

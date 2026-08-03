@@ -8,7 +8,7 @@ from pydantic import BaseModel
 class GLAccountCreate(BaseModel):
     code: str
     name: str
-    category: Literal["revenue", "expense"]
+    category: Literal["revenue", "expense", "asset", "liability", "equity"]
 
 
 class GLAccountOut(BaseModel):

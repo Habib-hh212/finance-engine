@@ -35,7 +35,7 @@ export interface SalesUploadResult {
   customers_created: number;
 }
 
-export type GLCategory = "revenue" | "expense";
+export type GLCategory = "revenue" | "expense" | "asset" | "liability" | "equity";
 
 export interface GLAccount {
   id: string;
@@ -176,4 +176,33 @@ export interface Insight {
   type: string;
   severity: "red" | "yellow";
   message: string;
+}
+
+export interface AccountAmount {
+  gl_account_id: string;
+  code: string;
+  name: string;
+  amount: number;
+}
+
+export interface IncomeStatement {
+  start_period: string;
+  end_period: string;
+  revenue_lines: AccountAmount[];
+  total_revenue: number;
+  expense_lines: AccountAmount[];
+  total_expense: number;
+  net_profit: number;
+}
+
+export interface BalanceSheet {
+  as_of: string;
+  asset_lines: AccountAmount[];
+  total_assets: number;
+  liability_lines: AccountAmount[];
+  total_liabilities: number;
+  equity_lines: AccountAmount[];
+  total_equity: number;
+  is_balanced: boolean;
+  difference: number;
 }
