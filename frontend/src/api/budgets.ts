@@ -1,5 +1,14 @@
 import { apiGet, apiPost } from "./client";
-import type { Budget, BudgetDetail, BudgetLine, BudgetType, GLAccount, GLCategory } from "./types";
+import type {
+  Budget,
+  BudgetDetail,
+  BudgetLine,
+  BudgetType,
+  CapitalAppraisalRow,
+  FlexibleVarianceRow,
+  GLAccount,
+  GLCategory,
+} from "./types";
 
 export const listGLAccounts = (companyId: string) => apiGet<GLAccount[]>(`/gl-accounts?company_id=${companyId}`);
 
@@ -8,15 +17,29 @@ export const createGLAccount = (companyId: string, code: string, name: string, c
 
 export const listBudgets = (companyId: string) => apiGet<Budget[]>(`/budgets?company_id=${companyId}`);
 
-export const createBudget = (companyId: string, name: string, type: BudgetType, fiscal_year: number, currency: string) =>
-  apiPost<Budget>(`/budgets?company_id=${companyId}`, { name, type, fiscal_year, currency });
+export const createBudget = (
+  companyId: string,
+  name: string,
+  type: BudgetType,
+  fiscal_year: number,
+  currency: string,
+  rolling_window_months?: number,
+) => apiPost<Budget>(`/budgets?company_id=${companyId}`, { name, type, fiscal_year, currency, rolling_window_months });
 
 export const getBudget = (budgetId: string) => apiGet<BudgetDetail>(`/budgets/${budgetId}`);
 
-export const addBudgetLines = (
-  budgetId: string,
-  lines: { gl_account_id: string; period: string; amount: number }[],
-) => apiPost<BudgetLine[]>(`/budgets/${budgetId}/lines`, lines);
+export interface BudgetLineInput {
+  gl_account_id: string;
+  period: string;
+  amount: number;
+  justification?: string;
+  variable_rate_per_unit?: number;
+  useful_life_years?: number;
+  annual_cash_flow?: number;
+}
+
+export const addBudgetLines = (budgetId: string, lines: BudgetLineInput[]) =>
+  apiPost<BudgetLine[]>(`/budgets/${budgetId}/lines`, lines);
 
 export const submitBudget = (budgetId: string) => apiPost<Budget>(`/budgets/${budgetId}/submit`);
 
@@ -25,3 +48,11 @@ export const approveBudget = (budgetId: string, actor_name: string, comment?: st
 
 export const rejectBudget = (budgetId: string, actor_name: string, comment?: string) =>
   apiPost<Budget>(`/budgets/${budgetId}/reject`, { actor_name, comment });
+
+export const rollForwardBudget = (budgetId: string) => apiPost<Budget>(`/budgets/${budgetId}/roll-forward`);
+
+export const getFlexibleVariance = (budgetId: string) =>
+  apiGet<FlexibleVarianceRow[]>(`/budgets/${budgetId}/flexible-variance`);
+
+export const getCapitalAppraisal = (budgetId: string) =>
+  apiGet<CapitalAppraisalRow[]>(`/budgets/${budgetId}/capital-appraisal`);

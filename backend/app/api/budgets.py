@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Approval, Budget, BudgetLine, GLAccount
+from app.models.budget import DEFAULT_ROLLING_WINDOW_MONTHS
 from app.schemas.budget import (
     ApprovalAction,
     BudgetCreate,
@@ -15,7 +16,8 @@ from app.schemas.budget import (
     GLAccountCreate,
     GLAccountOut,
 )
-from app.services import budget_workflow
+from app.schemas.variance import CapitalAppraisalRowOut, FlexibleVarianceRowOut
+from app.services import budget_workflow, capital_budget, rolling_budget, variance
 
 router = APIRouter(tags=["budgets"])
 
@@ -36,7 +38,10 @@ def list_gl_accounts(company_id: uuid.UUID, db: Session = Depends(get_db)):
 
 @router.post("/budgets", response_model=BudgetOut)
 def create_budget(company_id: uuid.UUID, payload: BudgetCreate, db: Session = Depends(get_db)):
-    budget = Budget(company_id=company_id, **payload.model_dump())
+    data = payload.model_dump()
+    if data["type"] == "rolling" and data["rolling_window_months"] is None:
+        data["rolling_window_months"] = DEFAULT_ROLLING_WINDOW_MONTHS
+    budget = Budget(company_id=company_id, **data)
     db.add(budget)
     db.commit()
     db.refresh(budget)
@@ -81,6 +86,10 @@ def add_budget_lines(budget_id: uuid.UUID, lines: list[BudgetLineIn], db: Sessio
             period=line.period,
             amount=line.amount,
             currency=line.currency or budget.currency,
+            justification=line.justification,
+            variable_rate_per_unit=line.variable_rate_per_unit,
+            useful_life_years=line.useful_life_years,
+            annual_cash_flow=line.annual_cash_flow,
         )
         db.add(record)
         created.append(record)
@@ -115,3 +124,30 @@ def reject_budget(budget_id: uuid.UUID, payload: ApprovalAction, db: Session = D
         return budget_workflow.reject_budget(db, budget, payload.actor_name, payload.comment)
     except budget_workflow.WorkflowError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.post("/budgets/{budget_id}/roll-forward", response_model=BudgetOut)
+def roll_forward_budget(budget_id: uuid.UUID, db: Session = Depends(get_db)):
+    budget = _get_budget_or_404(db, budget_id)
+    try:
+        return rolling_budget.roll_forward(db, budget)
+    except rolling_budget.RollForwardError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.get("/budgets/{budget_id}/flexible-variance", response_model=list[FlexibleVarianceRowOut])
+def get_flexible_variance(budget_id: uuid.UUID, db: Session = Depends(get_db)):
+    budget = _get_budget_or_404(db, budget_id)
+    if budget.type != "flexible":
+        raise HTTPException(status_code=409, detail="Flexible variance only applies to 'flexible' budgets")
+    rows = variance.flexible_budget_variance(db, budget)
+    return [FlexibleVarianceRowOut(**row.__dict__) for row in rows]
+
+
+@router.get("/budgets/{budget_id}/capital-appraisal", response_model=list[CapitalAppraisalRowOut])
+def get_capital_appraisal(budget_id: uuid.UUID, db: Session = Depends(get_db)):
+    budget = _get_budget_or_404(db, budget_id)
+    if budget.type != "capital":
+        raise HTTPException(status_code=409, detail="Capital appraisal only applies to 'capital' budgets")
+    rows = capital_budget.capital_appraisal(db, budget)
+    return [CapitalAppraisalRowOut(**row.__dict__) for row in rows]

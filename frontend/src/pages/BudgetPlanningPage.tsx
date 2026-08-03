@@ -9,6 +9,11 @@ import {
   Grid,
   MenuItem,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
@@ -22,12 +27,24 @@ import {
   createBudget,
   createGLAccount,
   getBudget,
+  getCapitalAppraisal,
+  getFlexibleVariance,
   listBudgets,
   listGLAccounts,
   rejectBudget,
+  rollForwardBudget,
   submitBudget,
 } from "../api/budgets";
-import type { Budget, BudgetDetail, BudgetStatus, BudgetType, GLAccount, GLCategory } from "../api/types";
+import type {
+  Budget,
+  BudgetDetail,
+  BudgetStatus,
+  BudgetType,
+  CapitalAppraisalRow,
+  FlexibleVarianceRow,
+  GLAccount,
+  GLCategory,
+} from "../api/types";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -49,6 +66,18 @@ const NEXT_ROLE: Record<BudgetStatus, string | null> = {
   rejected: null,
 };
 
+const BUDGET_TYPE_LABEL: Record<BudgetType, string> = {
+  revenue: "Revenue",
+  expense: "Expense",
+  master: "Master",
+  zero_based: "Zero-Based",
+  flexible: "Flexible",
+  rolling: "Rolling",
+  capital: "Capital",
+};
+
+const fmt = (n: number | null) => (n === null || n === undefined ? "—" : n.toLocaleString(undefined, { maximumFractionDigits: 2 }));
+
 export function BudgetPlanningPage() {
   const { company } = useCompany();
   const [glAccounts, setGlAccounts] = useState<GLAccount[]>([]);
@@ -63,13 +92,21 @@ export function BudgetPlanningPage() {
   const [budgetName, setBudgetName] = useState("");
   const [budgetType, setBudgetType] = useState<BudgetType>("expense");
   const [fiscalYear, setFiscalYear] = useState(String(new Date().getFullYear()));
+  const [rollingWindowMonths, setRollingWindowMonths] = useState("12");
 
   const [lineGlId, setLineGlId] = useState("");
   const [linePeriod, setLinePeriod] = useState("");
   const [lineAmount, setLineAmount] = useState("");
+  const [lineJustification, setLineJustification] = useState("");
+  const [lineVariableRate, setLineVariableRate] = useState("");
+  const [lineUsefulLife, setLineUsefulLife] = useState("");
+  const [lineAnnualCashFlow, setLineAnnualCashFlow] = useState("");
 
   const [actorName, setActorName] = useState("");
   const [comment, setComment] = useState("");
+
+  const [flexVariance, setFlexVariance] = useState<FlexibleVarianceRow[]>([]);
+  const [capitalRows, setCapitalRows] = useState<CapitalAppraisalRow[]>([]);
 
   const loadAll = async () => {
     if (!company) return;
@@ -87,6 +124,8 @@ export function BudgetPlanningPage() {
     setError(null);
     const detail = await getBudget(id);
     setSelected(detail);
+    setFlexVariance(detail.type === "flexible" ? await getFlexibleVariance(id) : []);
+    setCapitalRows(detail.type === "capital" ? await getCapitalAppraisal(id) : []);
   };
 
   const glNameFor = useMemo(() => {
@@ -116,7 +155,14 @@ export function BudgetPlanningPage() {
   const handleCreateBudget = () =>
     runAction(async () => {
       if (!company || !budgetName) return;
-      const created = await createBudget(company.id, budgetName, budgetType, Number(fiscalYear), company.base_currency);
+      const created = await createBudget(
+        company.id,
+        budgetName,
+        budgetType,
+        Number(fiscalYear),
+        company.base_currency,
+        budgetType === "rolling" ? Number(rollingWindowMonths) : undefined,
+      );
       setBudgetName("");
       await openBudget(created.id);
     });
@@ -124,16 +170,43 @@ export function BudgetPlanningPage() {
   const handleAddLine = () =>
     runAction(async () => {
       if (!selected || !lineGlId || !linePeriod || !lineAmount) return;
-      await addBudgetLines(selected.id, [{ gl_account_id: lineGlId, period: `${linePeriod}-01`, amount: Number(lineAmount) }]);
+      await addBudgetLines(selected.id, [
+        {
+          gl_account_id: lineGlId,
+          period: `${linePeriod}-01`,
+          amount: Number(lineAmount),
+          justification: selected.type === "zero_based" ? lineJustification || undefined : undefined,
+          variable_rate_per_unit: selected.type === "flexible" && lineVariableRate ? Number(lineVariableRate) : undefined,
+          useful_life_years: selected.type === "capital" && lineUsefulLife ? Number(lineUsefulLife) : undefined,
+          annual_cash_flow: selected.type === "capital" && lineAnnualCashFlow ? Number(lineAnnualCashFlow) : undefined,
+        },
+      ]);
       setLineAmount("");
+      setLineJustification("");
+      setLineVariableRate("");
+      setLineUsefulLife("");
+      setLineAnnualCashFlow("");
     });
 
-  const columnDefs: ColDef[] = [
-    { field: "gl_account_id", headerName: "GL Account", valueFormatter: (p) => glNameFor(p.value), flex: 2 },
-    { field: "period", headerName: "Period", flex: 1 },
-    { field: "amount", headerName: "Amount", flex: 1, valueFormatter: (p) => Number(p.value).toLocaleString() },
-    { field: "currency", headerName: "Currency", flex: 1 },
-  ];
+  const columnDefs: ColDef[] = useMemo(() => {
+    const base: ColDef[] = [
+      { field: "gl_account_id", headerName: "GL Account", valueFormatter: (p) => glNameFor(p.value), flex: 2 },
+      { field: "period", headerName: "Period", flex: 1 },
+      { field: "amount", headerName: "Amount", flex: 1, valueFormatter: (p) => Number(p.value).toLocaleString() },
+      { field: "currency", headerName: "Currency", flex: 1 },
+    ];
+    if (selected?.type === "zero_based") {
+      base.push({ field: "justification", headerName: "Justification", flex: 2 });
+    }
+    if (selected?.type === "flexible") {
+      base.push({ field: "variable_rate_per_unit", headerName: "Rate/unit", flex: 1 });
+    }
+    if (selected?.type === "capital") {
+      base.push({ field: "useful_life_years", headerName: "Useful life (yrs)", flex: 1 });
+      base.push({ field: "annual_cash_flow", headerName: "Annual cash flow", flex: 1 });
+    }
+    return base;
+  }, [selected?.type, glNameFor]);
 
   return (
     <Stack spacing={3}>
@@ -188,8 +261,21 @@ export function BudgetPlanningPage() {
                     <MenuItem value="revenue">Revenue</MenuItem>
                     <MenuItem value="expense">Expense</MenuItem>
                     <MenuItem value="master">Master</MenuItem>
+                    <MenuItem value="zero_based">Zero-Based</MenuItem>
+                    <MenuItem value="flexible">Flexible</MenuItem>
+                    <MenuItem value="rolling">Rolling</MenuItem>
+                    <MenuItem value="capital">Capital</MenuItem>
                   </TextField>
                   <TextField label="Fiscal year" size="small" value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)} />
+                  {budgetType === "rolling" && (
+                    <TextField
+                      label="Rolling window (months)"
+                      type="number"
+                      size="small"
+                      value={rollingWindowMonths}
+                      onChange={(e) => setRollingWindowMonths(e.target.value)}
+                    />
+                  )}
                   <Button variant="contained" size="small" onClick={handleCreateBudget} disabled={!budgetName}>
                     Create budget
                   </Button>
@@ -244,7 +330,10 @@ export function BudgetPlanningPage() {
                     <Box>
                       <Typography variant="h6">{selected.name}</Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {selected.type} · FY{selected.fiscal_year} · {selected.currency}
+                        {BUDGET_TYPE_LABEL[selected.type]} · FY{selected.fiscal_year} · {selected.currency}
+                        {selected.type === "rolling" && selected.rolling_window_months
+                          ? ` · ${selected.rolling_window_months}-month window`
+                          : ""}
                       </Typography>
                     </Box>
                     <Chip label={selected.status} color={STATUS_COLOR[selected.status]} />
@@ -274,8 +363,59 @@ export function BudgetPlanningPage() {
                         onChange={(e) => setLinePeriod(e.target.value)}
                         slotProps={{ inputLabel: { shrink: true } }}
                       />
-                      <TextField label="Amount" type="number" size="small" value={lineAmount} onChange={(e) => setLineAmount(e.target.value)} />
-                      <Button variant="outlined" onClick={handleAddLine} disabled={!lineGlId || !linePeriod || !lineAmount}>
+                      <TextField
+                        label={selected.type === "capital" ? "Investment" : "Amount"}
+                        type="number"
+                        size="small"
+                        value={lineAmount}
+                        onChange={(e) => setLineAmount(e.target.value)}
+                      />
+                      {selected.type === "zero_based" && (
+                        <TextField
+                          label="Justification"
+                          size="small"
+                          value={lineJustification}
+                          onChange={(e) => setLineJustification(e.target.value)}
+                          sx={{ minWidth: 220 }}
+                        />
+                      )}
+                      {selected.type === "flexible" && (
+                        <TextField
+                          label="Variable rate/unit"
+                          type="number"
+                          size="small"
+                          value={lineVariableRate}
+                          onChange={(e) => setLineVariableRate(e.target.value)}
+                        />
+                      )}
+                      {selected.type === "capital" && (
+                        <>
+                          <TextField
+                            label="Useful life (yrs)"
+                            type="number"
+                            size="small"
+                            value={lineUsefulLife}
+                            onChange={(e) => setLineUsefulLife(e.target.value)}
+                          />
+                          <TextField
+                            label="Annual cash flow"
+                            type="number"
+                            size="small"
+                            value={lineAnnualCashFlow}
+                            onChange={(e) => setLineAnnualCashFlow(e.target.value)}
+                          />
+                        </>
+                      )}
+                      <Button
+                        variant="outlined"
+                        onClick={handleAddLine}
+                        disabled={
+                          !lineGlId ||
+                          !linePeriod ||
+                          !lineAmount ||
+                          (selected.type === "zero_based" && !lineJustification)
+                        }
+                      >
                         Add
                       </Button>
                     </Stack>
@@ -286,6 +426,99 @@ export function BudgetPlanningPage() {
               <Box sx={{ height: 260, width: "100%" }}>
                 <AgGridReact rowData={selected.lines} columnDefs={columnDefs} theme={themeQuartz} />
               </Box>
+
+              {selected.type === "rolling" && selected.status === "draft" && (
+                <Card variant="outlined">
+                  <CardContent>
+                    <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Roll the window forward one month — copies the latest period's lines and drops the oldest.
+                      </Typography>
+                      <Button variant="outlined" onClick={() => runAction(() => rollForwardBudget(selected.id))}>
+                        Roll forward
+                      </Button>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              )}
+
+              {selected.type === "flexible" && flexVariance.length > 0 && (
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Flexible budget variance
+                    </Typography>
+                    <Box sx={{ overflowX: "auto" }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Account</TableCell>
+                            <TableCell>Period</TableCell>
+                            <TableCell align="right">Static</TableCell>
+                            <TableCell align="right">Flexed</TableCell>
+                            <TableCell align="right">Actual</TableCell>
+                            <TableCell align="right">Spending var.</TableCell>
+                            <TableCell align="right">Volume var.</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {flexVariance.map((row, i) => (
+                            <TableRow key={i}>
+                              <TableCell>
+                                {row.gl_account_code} {row.gl_account_name}
+                              </TableCell>
+                              <TableCell>{row.period}</TableCell>
+                              <TableCell align="right">{fmt(row.static_amount)}</TableCell>
+                              <TableCell align="right">{fmt(row.flexed_amount)}</TableCell>
+                              <TableCell align="right">{fmt(row.actual_amount)}</TableCell>
+                              <TableCell align="right">{fmt(row.spending_variance)}</TableCell>
+                              <TableCell align="right">{fmt(row.volume_variance)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </Box>
+                  </CardContent>
+                </Card>
+              )}
+
+              {selected.type === "capital" && capitalRows.length > 0 && (
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Capital appraisal
+                    </Typography>
+                    <Box sx={{ overflowX: "auto" }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Account</TableCell>
+                            <TableCell align="right">Investment</TableCell>
+                            <TableCell align="right">Payback (yrs)</TableCell>
+                            <TableCell align="right">Total cash flow</TableCell>
+                            <TableCell align="right">Net gain</TableCell>
+                            <TableCell align="right">ROI %</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {capitalRows.map((row, i) => (
+                            <TableRow key={i}>
+                              <TableCell>
+                                {row.gl_account_code} {row.gl_account_name}
+                              </TableCell>
+                              <TableCell align="right">{fmt(row.investment)}</TableCell>
+                              <TableCell align="right">{fmt(row.payback_period_years)}</TableCell>
+                              <TableCell align="right">{fmt(row.total_cash_flow)}</TableCell>
+                              <TableCell align="right">{fmt(row.net_gain)}</TableCell>
+                              <TableCell align="right">{fmt(row.roi_pct)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </Box>
+                  </CardContent>
+                </Card>
+              )}
 
               <Card variant="outlined">
                 <CardContent>

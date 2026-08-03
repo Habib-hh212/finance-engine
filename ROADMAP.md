@@ -141,7 +141,7 @@ Per your instruction, this doesn't live as a local-only folder — it's a proper
 | Phase | Modules |
 |---|---|
 | **Phase 1** (this doc) | Sales Forecasting · Budget Planning · Cash Flow Forecast · Cost Controlling & Variance · Profitability Analysis (light) · KPI Dashboard (light) · AI Engine v0 (rule-based) · **Financial Statements: Income Statement & Balance Sheet** (historical/current reporting from actuals — added after the fact; see §6a) |
-| **Phase 2 — Depth & Control** | Standard Costing + full variance set (material/labor/overhead) · Marginal Costing (break-even, margin of safety, operating leverage) · Full Budget suite (Zero-Based, Flexible, Rolling, Capital) · Approval Workflow with version history · Multi-company consolidation |
+| **Phase 2 — Depth & Control** | ✅ Full Budget suite (Zero-Based, Flexible, Rolling, Capital) · Standard Costing + full variance set (material/labor/overhead) · Marginal Costing (break-even, margin of safety, operating leverage) · Approval Workflow with version history · Multi-company consolidation |
 | **Phase 3 — Intelligence** | ML forecasting (Random Forest, XGBoost, Prophet, LSTM) · Scenario Planning ("what-if" P&L/BS/CF recalculation) · Full AI Recommendation Engine (NLP insights, anomaly detection) · Churn/demand/bad-debt prediction · **Financial Statement Forecasting** (projecting future P&L/Balance Sheet — needs driver linkages: AR from sales forecast + a DSO assumption, AP from budget + a DPO assumption, retained-earnings roll-forward, etc.; this is real financial modeling, not just a report, hence deferred here rather than bundled with §6a) |
 | **Phase 4 — Enterprise hardening** | ERP/system integrations (SAP, Oracle, Dynamics, QuickBooks, Xero, SQL Server) · Azure AD / SSO · Multi-currency scenario engine · Monte Carlo simulation · Full report generation (Excel/PDF/PPT) · ESG metrics · Audit trail everywhere |
 
@@ -157,6 +157,19 @@ Splitting it into two honestly different problems:
 - **Forecasting** (projecting the P&L/Balance Sheet *forward*) — needs real driver linkages that don't exist yet (accounts receivable driven by the sales forecast + a collection-days assumption, accounts payable driven by the budget + a payment-days assumption, retained earnings rolling forward period to period). That's a genuine financial-modeling exercise, not an extension of the reporting endpoints, so it's sequenced into Phase 3 instead of bolted onto this.
 
 One more honesty note on the Balance Sheet specifically: this system doesn't enforce double-entry bookkeeping (no linked debit/credit postings), so "assets = liabilities + equity" isn't guaranteed to balance — it'll only balance if whoever is entering actuals enters them consistently. The Balance Sheet report will show whether it balances, not assume it does.
+
+---
+
+## 6b. Full Budget suite (Phase 2, first slice) — done
+
+`Budget.type` now covers four distinct budgeting methods beyond the original revenue/expense/master, each with real (not cosmetic) behavior:
+
+- **Zero-Based** — every line needs a non-empty `justification` before the budget can be submitted for approval; enforced in `budget_workflow.submit_budget`, not just a UI hint.
+- **Flexible** — a line carries a fixed `amount` plus an optional `variable_rate_per_unit`. Given an `ActualLine.actual_quantity`, `GET /budgets/{id}/flexible-variance` flexes the budget to the actual activity level and decomposes the total variance into a *spending variance* (actual vs. flexed — did managers overspend for the activity they actually had?) and a *volume variance* (flexed vs. static — how much of the miss was just activity being different than planned?).
+- **Rolling** — carries a fixed `rolling_window_months` (default 12). `POST /budgets/{id}/roll-forward` copies the latest period's lines one month forward and drops the oldest period, so the window never grows.
+- **Capital** — a line carries `useful_life_years` and `annual_cash_flow` against its `amount` (the investment). `GET /budgets/{id}/capital-appraisal` returns payback period and simple ROI per line — deliberately no NPV/IRR/discounting, consistent with keeping Phase 2 formulas explainable rather than building a full appraisal engine.
+
+`Budget.type` still mixes "what it covers" with "how it's managed" in one field rather than two orthogonal dimensions — noted in `app/models/budget.py` as a deliberate simplification, revisit only if something actually needs to cross them (e.g. a flexible expense budget).
 
 ---
 

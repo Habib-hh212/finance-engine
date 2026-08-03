@@ -22,3 +22,6 @@ class ActualLine(Base):
     amount: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # The actual activity/volume for this period (units produced, hours worked,
+    # etc.) -- only needed to flex a "flexible" budget line against reality.
+    actual_quantity: Mapped[Optional[float]] = mapped_column(Numeric(18, 4), nullable=True)

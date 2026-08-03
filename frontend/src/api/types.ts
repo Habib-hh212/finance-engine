@@ -44,7 +44,7 @@ export interface GLAccount {
   category: GLCategory;
 }
 
-export type BudgetType = "revenue" | "expense" | "master";
+export type BudgetType = "revenue" | "expense" | "master" | "zero_based" | "flexible" | "rolling" | "capital";
 export type BudgetStatus = "draft" | "pending_manager" | "pending_finance" | "pending_cfo" | "approved" | "rejected";
 
 export interface Budget {
@@ -55,6 +55,7 @@ export interface Budget {
   fiscal_year: number;
   currency: string;
   status: BudgetStatus;
+  rolling_window_months: number | null;
 }
 
 export interface BudgetLine {
@@ -63,6 +64,10 @@ export interface BudgetLine {
   period: string;
   amount: number;
   currency: string;
+  justification: string | null;
+  variable_rate_per_unit: number | null;
+  useful_life_years: number | null;
+  annual_cash_flow: number | null;
 }
 
 export interface Approval {
@@ -120,6 +125,7 @@ export interface ActualLine {
   amount: number;
   currency: string;
   description: string | null;
+  actual_quantity: number | null;
 }
 
 export interface VarianceRow {
@@ -142,6 +148,36 @@ export interface BudgetConsumption {
   remaining: number;
   consumption_pct: number | null;
   status: TrafficLight;
+}
+
+export interface FlexibleVarianceRow {
+  gl_account_id: string;
+  gl_account_code: string;
+  gl_account_name: string;
+  period: string;
+  static_amount: number;
+  variable_rate_per_unit: number;
+  actual_quantity: number | null;
+  flexed_amount: number;
+  actual_amount: number;
+  spending_variance: number;
+  volume_variance: number;
+  total_variance: number;
+}
+
+export interface CapitalAppraisalRow {
+  gl_account_id: string;
+  gl_account_code: string;
+  gl_account_name: string;
+  period: string;
+  investment: number;
+  annual_cash_flow: number | null;
+  useful_life_years: number | null;
+  payback_period_years: number | null;
+  total_cash_flow: number | null;
+  net_gain: number | null;
+  roi_pct: number | null;
+  average_annual_roi_pct: number | null;
 }
 
 export interface ProductProfitability {

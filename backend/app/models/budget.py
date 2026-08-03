@@ -33,16 +33,29 @@ class GLAccount(Base):
     category: Mapped[str] = mapped_column(String(20), nullable=False)  # revenue | expense | asset | liability | equity
 
 
+# Budget.type mixes "what it covers" (revenue/expense/master) with "how it's
+# built and managed" (zero_based/flexible/rolling/capital) in one field
+# rather than two orthogonal ones -- a deliberate simplification. A real
+# enterprise system might let you cross them (a "flexible expense budget"),
+# but nothing here asked for that, and splitting it adds a dimension of
+# complexity nobody's using yet.
+BUDGET_TYPES = {"revenue", "expense", "master", "zero_based", "flexible", "rolling", "capital"}
+DEFAULT_ROLLING_WINDOW_MONTHS = 12
+
+
 class Budget(Base):
     __tablename__ = "budgets"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    type: Mapped[str] = mapped_column(String(20), nullable=False)  # revenue | expense | master
+    type: Mapped[str] = mapped_column(String(20), nullable=False)  # see BUDGET_TYPES
     fiscal_year: Mapped[int] = mapped_column(nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default=BudgetStatus.DRAFT)
+    # Only meaningful when type == "rolling": the fixed size of the forward
+    # window, in months. Each roll-forward keeps exactly this many periods.
+    rolling_window_months: Mapped[Optional[int]] = mapped_column(nullable=True)
 
 
 class BudgetLine(Base):
@@ -54,6 +67,15 @@ class BudgetLine(Base):
     period: Mapped[date] = mapped_column(Date, nullable=False)  # first day of the month
     amount: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
+
+    # zero_based: required (enforced at submit time) before a line counts as justified.
+    justification: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # flexible: `amount` above is the FIXED portion; this is the per-unit variable portion.
+    # flexed_amount(actual_qty) = amount + variable_rate_per_unit * actual_qty
+    variable_rate_per_unit: Mapped[Optional[float]] = mapped_column(Numeric(18, 4), nullable=True)
+    # capital: investment appraisal inputs for this line.
+    useful_life_years: Mapped[Optional[int]] = mapped_column(nullable=True)
+    annual_cash_flow: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
 
 
 class Approval(Base):

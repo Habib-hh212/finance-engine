@@ -154,3 +154,79 @@ def budget_consumption(db: Session, budget: Budget) -> BudgetConsumption:
         consumption_pct=consumption_pct,
         status=status,
     )
+
+
+@dataclass
+class FlexibleVarianceRow:
+    """Flexible-budget variance decomposes the total variance into two parts:
+
+    - spending variance: actual cost vs. what the budget WOULD have allowed
+      at the actual activity level (the flexed budget) -- this isolates
+      whether managers spent efficiently.
+    - volume variance: the flexed budget vs. the original static budget --
+      this isolates the effect of activity being higher/lower than planned,
+      which isn't a manager's spending decision.
+    """
+
+    gl_account_id: object
+    gl_account_code: str
+    gl_account_name: str
+    period: date
+    static_amount: float
+    variable_rate_per_unit: float
+    actual_quantity: Optional[float]
+    flexed_amount: float
+    actual_amount: float
+    spending_variance: float
+    volume_variance: float
+    total_variance: float
+
+
+def flexible_budget_variance(db: Session, budget: Budget) -> list[FlexibleVarianceRow]:
+    lines = db.query(BudgetLine).filter(BudgetLine.budget_id == budget.id).all()
+    gl_accounts = {a.id: a for a in db.query(GLAccount).filter(GLAccount.company_id == budget.company_id).all()}
+
+    actuals = (
+        db.query(ActualLine)
+        .filter(ActualLine.company_id == budget.company_id, ActualLine.gl_account_id.in_({line.gl_account_id for line in lines}))
+        .all()
+        if lines
+        else []
+    )
+    actual_amount_totals: dict = defaultdict(float)
+    actual_qty_totals: dict = defaultdict(float)
+    for actual in actuals:
+        key = (actual.gl_account_id, actual.period)
+        actual_amount_totals[key] += float(actual.amount)
+        actual_qty_totals[key] += float(actual.actual_quantity or 0.0)
+
+    rows = []
+    for line in lines:
+        account = gl_accounts.get(line.gl_account_id)
+        if account is None:
+            continue
+
+        key = (line.gl_account_id, line.period)
+        static_amount = round(float(line.amount), 2)
+        variable_rate = float(line.variable_rate_per_unit or 0.0)
+        actual_quantity = actual_qty_totals.get(key)
+        flexed_amount = round(static_amount + variable_rate * (actual_quantity or 0.0), 2)
+        actual_amount = round(actual_amount_totals.get(key, 0.0), 2)
+
+        rows.append(
+            FlexibleVarianceRow(
+                gl_account_id=line.gl_account_id,
+                gl_account_code=account.code,
+                gl_account_name=account.name,
+                period=line.period,
+                static_amount=static_amount,
+                variable_rate_per_unit=variable_rate,
+                actual_quantity=actual_quantity,
+                flexed_amount=flexed_amount,
+                actual_amount=actual_amount,
+                spending_variance=round(actual_amount - flexed_amount, 2),
+                volume_variance=round(flexed_amount - static_amount, 2),
+                total_variance=round(actual_amount - static_amount, 2),
+            )
+        )
+    return rows

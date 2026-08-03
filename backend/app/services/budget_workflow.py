@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from app.models.budget import APPROVAL_CHAIN, ROLE_FOR_STATUS, Approval, Budget, BudgetStatus
+from app.models.budget import APPROVAL_CHAIN, ROLE_FOR_STATUS, Approval, Budget, BudgetLine, BudgetStatus
 
 
 class WorkflowError(ValueError):
@@ -17,6 +17,17 @@ class WorkflowError(ValueError):
 def submit_budget(db: Session, budget: Budget) -> Budget:
     if budget.status not in (BudgetStatus.DRAFT, BudgetStatus.REJECTED):
         raise WorkflowError(f"Cannot submit a budget in status '{budget.status}'")
+
+    if budget.type == "zero_based":
+        lines = db.query(BudgetLine).filter(BudgetLine.budget_id == budget.id).all()
+        if not lines:
+            raise WorkflowError("A zero-based budget needs at least one line before it can be submitted")
+        unjustified = [line for line in lines if not (line.justification or "").strip()]
+        if unjustified:
+            raise WorkflowError(
+                f"{len(unjustified)} line(s) are missing a justification, required for zero-based budgets"
+            )
+
     budget.status = APPROVAL_CHAIN[0]
     db.commit()
     db.refresh(budget)

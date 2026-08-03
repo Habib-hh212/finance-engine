@@ -34,6 +34,7 @@ export function ControllingPage() {
   const [actualGlId, setActualGlId] = useState("");
   const [actualPeriod, setActualPeriod] = useState("");
   const [actualAmount, setActualAmount] = useState("");
+  const [actualQuantity, setActualQuantity] = useState("");
 
   const load = async () => {
     if (!company) return;
@@ -66,8 +67,16 @@ export function ControllingPage() {
 
   const handlePostActual = async () => {
     if (!company || !actualGlId || !actualPeriod || !actualAmount) return;
-    await createActual(company.id, actualGlId, `${actualPeriod}-01`, Number(actualAmount));
+    await createActual(
+      company.id,
+      actualGlId,
+      `${actualPeriod}-01`,
+      Number(actualAmount),
+      undefined,
+      actualQuantity ? Number(actualQuantity) : undefined,
+    );
     setActualAmount("");
+    setActualQuantity("");
     await load();
   };
 
@@ -100,6 +109,14 @@ export function ControllingPage() {
             </TextField>
             <TextField label="Period" type="month" size="small" value={actualPeriod} onChange={(e) => setActualPeriod(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
             <TextField label="Amount" type="number" size="small" value={actualAmount} onChange={(e) => setActualAmount(e.target.value)} />
+            <TextField
+              label="Quantity (optional)"
+              type="number"
+              size="small"
+              value={actualQuantity}
+              onChange={(e) => setActualQuantity(e.target.value)}
+              helperText="For flexible budgets"
+            />
             <Button variant="outlined" onClick={handlePostActual} disabled={!actualGlId || !actualPeriod || !actualAmount}>
               Post
             </Button>

@@ -59,16 +59,19 @@ Optional: `product_name`, `customer_name`.
 - `GET /sales/forecast?company_id=<uuid>&product_id=<uuid>&model=<model>&periods=<n>` — forecast the next `n` months
 - `POST /gl-accounts?company_id=<uuid>` — create a GL account (`category`: `revenue` | `expense` | `asset` | `liability` | `equity`)
 - `GET /gl-accounts?company_id=<uuid>` — list GL accounts
-- `POST /budgets?company_id=<uuid>` — create a budget (`type`: `revenue` | `expense` | `master`), starts in `draft`
+- `POST /budgets?company_id=<uuid>` — create a budget (`type`: `revenue` | `expense` | `master` | `zero_based` | `flexible` | `rolling` | `capital`), starts in `draft`. `rolling_window_months` defaults to 12 when `type` is `rolling` and it's omitted.
 - `GET /budgets?company_id=<uuid>` / `GET /budgets/{id}` — list / fetch a budget (detail includes lines + approval history)
-- `POST /budgets/{id}/lines` — add line items (only while `draft`)
-- `POST /budgets/{id}/submit` — moves `draft`/`rejected` → `pending_manager`
+- `POST /budgets/{id}/lines` — add line items (only while `draft`); accepts `justification` (zero-based), `variable_rate_per_unit` (flexible), `useful_life_years` + `annual_cash_flow` (capital) as optional per-type fields
+- `POST /budgets/{id}/submit` — moves `draft`/`rejected` → `pending_manager`; for `zero_based` budgets, rejects with 409 if any line is missing a `justification`
 - `POST /budgets/{id}/approve` — advances the chain: `pending_manager` → `pending_finance` → `pending_cfo` → `approved` (locked)
 - `POST /budgets/{id}/reject` — moves the current pending stage → `rejected`; resubmit to restart the chain
+- `POST /budgets/{id}/roll-forward` — **rolling** budgets only, `draft` only: copies the latest period's lines one month forward and drops the oldest period, keeping `rolling_window_months` periods
+- `GET /budgets/{id}/flexible-variance` — **flexible** budgets only: flexes each line's budget to `ActualLine.actual_quantity` and returns static/flexed/actual amounts plus spending variance (actual vs. flexed) and volume variance (flexed vs. static)
+- `GET /budgets/{id}/capital-appraisal` — **capital** budgets only: payback period and simple ROI per line from `amount` (investment), `annual_cash_flow`, and `useful_life_years` — no NPV/IRR discounting
 - `POST /cashflow/items?company_id=<uuid>` — add a manual cash movement (`category`: `receivable_collection` | `payroll` | `vendor_payment` | `tax` | `loan` | `interest` | `other`; `direction`: `in` | `out`)
 - `GET /cashflow/items?company_id=<uuid>` — list manual cash items
 - `GET /cashflow/forecast?company_id=<uuid>&start_period=<YYYY-MM-DD>&periods=12&collection_lag_days=30&opening_balance=0` — rolling cash flow: cash-in from the sales forecast (shifted by the collection lag) + manual inflows, minus cash-out from **approved** expense budgets + manual outflows, with a running balance. Draft/pending budgets are excluded on purpose — they aren't a commitment yet. Assumes all contributing amounts are already in the company's base currency (FX conversion is a Phase 4 item).
-- `POST /actuals?company_id=<uuid>` — post an actual amount against a GL account/period
+- `POST /actuals?company_id=<uuid>` — post an actual amount against a GL account/period; optional `actual_quantity` feeds flexible-budget variance
 - `GET /actuals?company_id=<uuid>&gl_account_id=<uuid>` — list actuals
 - `GET /variance/budget-vs-actual?company_id=<uuid>&fiscal_year=<int>` — actual vs. **approved** budget by GL account/period, with variance amount, variance %, and traffic-light `status` (`green`/`yellow`/`red`) — direction-aware: expense overrun and revenue shortfall are unfavorable, the reverse is always green
 - `GET /variance/budget-consumption/{budget_id}` — spent vs. remaining vs. total for a budget (any status — consumption is tracked through the approval cycle, not just after), with the same traffic-light `status`

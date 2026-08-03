@@ -20,11 +20,15 @@ class GLAccountOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+BudgetType = Literal["revenue", "expense", "master", "zero_based", "flexible", "rolling", "capital"]
+
+
 class BudgetCreate(BaseModel):
     name: str
-    type: Literal["revenue", "expense", "master"]
+    type: BudgetType
     fiscal_year: int
     currency: str = "USD"
+    rolling_window_months: Optional[int] = None  # only meaningful when type == "rolling"; defaults to 12
 
 
 class BudgetLineIn(BaseModel):
@@ -32,6 +36,10 @@ class BudgetLineIn(BaseModel):
     period: date
     amount: float
     currency: Optional[str] = None  # defaults to the budget's currency if omitted
+    justification: Optional[str] = None
+    variable_rate_per_unit: Optional[float] = None
+    useful_life_years: Optional[int] = None
+    annual_cash_flow: Optional[float] = None
 
 
 class BudgetLineOut(BaseModel):
@@ -40,6 +48,10 @@ class BudgetLineOut(BaseModel):
     period: date
     amount: float
     currency: str
+    justification: Optional[str] = None
+    variable_rate_per_unit: Optional[float] = None
+    useful_life_years: Optional[int] = None
+    annual_cash_flow: Optional[float] = None
 
     model_config = {"from_attributes": True}
 
@@ -62,6 +74,7 @@ class BudgetOut(BaseModel):
     fiscal_year: int
     currency: str
     status: str
+    rolling_window_months: Optional[int] = None
 
     model_config = {"from_attributes": True}
 

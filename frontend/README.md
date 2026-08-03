@@ -1,6 +1,6 @@
 # Frontend
 
-React + TypeScript + Material UI, covering all Phase 1 backend modules: Dashboard (KPIs + AI Insights), Sales Forecasting, Budget Planning, Cash Flow Forecast, Cost Controlling & Variance, Profitability, and Financial Statements (Income Statement + Balance Sheet).
+React + TypeScript + Material UI, covering all Phase 1 backend modules: Dashboard (KPIs + AI Insights), Sales Forecasting, Budget Planning, Cash Flow Forecast, Cost Controlling & Variance, Profitability, and Financial Statements (Income Statement + Balance Sheet). Budget Planning also covers the Phase 2 Full Budget suite: Zero-Based (per-line justification gate), Flexible (variable-rate lines + spending/volume variance), Rolling (fixed-window roll-forward), and Capital (payback period + ROI appraisal).
 
 ## Run
 

@@ -11,6 +11,7 @@ class ActualLineCreate(BaseModel):
     amount: float
     currency: str = "USD"
     description: Optional[str] = None
+    actual_quantity: Optional[float] = None
 
 
 class ActualLineOut(BaseModel):
@@ -20,5 +21,6 @@ class ActualLineOut(BaseModel):
     amount: float
     currency: str
     description: Optional[str]
+    actual_quantity: Optional[float] = None
 
     model_config = {"from_attributes": True}
