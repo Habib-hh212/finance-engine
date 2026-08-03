@@ -1,10 +1,13 @@
-"""Phase 1 forecast models: moving average, weighted average, exponential smoothing.
+"""Forecast models: moving average, weighted average, exponential smoothing
+(Phase 1, statistical), plus random_forest/gradient_boosting (Phase 3, ML --
+see ml_forecasting.py).
 
 Each function takes a pandas Series of historical monthly values (indexed by
 month, oldest first) and returns a forecast for the next `periods` months
 with a 95% confidence interval derived from historical residual error.
 """
 from dataclasses import dataclass
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -69,3 +72,44 @@ def forecast(history: pd.Series, model: str, periods: int = 3) -> list[ForecastP
     if model not in MODELS:
         raise ValueError(f"Unknown model '{model}'. Choose from {list(MODELS)}")
     return MODELS[model](history, periods=periods)
+
+
+# Imported at the bottom, after ForecastPoint/MODELS exist, so ml_forecasting's
+# own `from app.services.forecasting import ForecastPoint` doesn't hit a
+# circular-import error -- by this point in module execution, forecasting has
+# already defined the name ml_forecasting needs.
+from app.services import ml_forecasting  # noqa: E402
+
+MODELS["random_forest"] = ml_forecasting.random_forest
+MODELS["gradient_boosting"] = ml_forecasting.gradient_boosting
+
+MIN_BACKTEST_HISTORY = 3
+
+
+def compare_models(history: pd.Series, min_history: int = MIN_BACKTEST_HISTORY) -> dict[str, Optional[float]]:
+    """Walk-forward MAPE backtest, run separately for every registered model
+    against the same history, so accuracy can be compared model-to-model for
+    one product. A model that needs more history than is available at an
+    early backtest step (the ML models need MIN_ML_HISTORY) just skips that
+    step rather than aborting the whole comparison.
+    """
+    amounts = [float(v) for v in history.to_numpy()]
+    periods = list(history.index)
+    if len(amounts) < min_history + 1:
+        return {name: None for name in MODELS}
+
+    results: dict[str, Optional[float]] = {}
+    for name in MODELS:
+        errors = []
+        for t in range(min_history, len(amounts)):
+            sub_history = pd.Series(amounts[:t], index=periods[:t])
+            try:
+                predicted = forecast(sub_history, model=name, periods=1)[0].forecast
+            except ValueError:
+                continue
+            actual = amounts[t]
+            if actual == 0:
+                continue
+            errors.append(abs(actual - predicted) / abs(actual))
+        results[name] = round((sum(errors) / len(errors)) * 100, 1) if errors else None
+    return results

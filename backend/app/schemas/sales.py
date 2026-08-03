@@ -1,5 +1,6 @@
 import uuid
 from datetime import date
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -24,6 +25,13 @@ class ForecastResponse(BaseModel):
     model: str
     history_periods: int
     points: list[ForecastPointOut]
+
+
+class ModelComparisonOut(BaseModel):
+    company_id: uuid.UUID
+    product_id: uuid.UUID
+    history_periods: int
+    mape_by_model: dict[str, Optional[float]]
 
 
 class CompanyCreate(BaseModel):

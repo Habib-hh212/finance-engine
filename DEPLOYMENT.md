@@ -40,18 +40,17 @@ Both projects are linked (`.vercel/` directories, gitignored) so `vercel --prod`
 
 ## Database schema changes
 
-There's no migration tool wired up yet (no Alembic). After changing a SQLAlchemy model, apply it to Neon directly:
+There's no migration tool wired up yet (no Alembic). `app.main`'s lifespan runs two steps on every startup: `Base.metadata.create_all(bind=engine)`, which creates any *table* the live database doesn't have yet, then `app.migrations.apply_additive_columns(engine)`, which inspects each existing table and adds any *column* listed in `ADDITIVE_COLUMNS` that's missing.
 
-```bash
-cd backend
-DATABASE_URL="<neon connection string>" python3 -c "
-from app.database import Base, engine
-import app.models
-Base.metadata.create_all(bind=engine)
-"
-```
+**`create_all` on its own does not add columns to a table that already exists** — this bit us for real: several columns added to `budgets`/`budget_lines`/`actual_lines` during Phase 2 shipped, passed local tests (a fresh SQLite DB always has the full current schema), and simply never reached the live Neon Postgres table. Every budget creation and every actuals post 500'd in production until it was caught by accident days later, not by any deploy check.
 
-`create_all` only adds missing tables/columns it doesn't know about — it won't alter or drop existing ones. That's fine for adding new tables, not for changing existing column types; a real migration tool is needed before this schema stabilizes further.
+**So: any new column on an already-existing table needs a matching entry added to `ADDITIVE_COLUMNS` in `backend/app/migrations.py`, in the same change that adds the model field.** New tables don't need an entry — `create_all` handles those correctly on its own. After deploying, verify with a real write against the live API (a `curl POST`, not just checking the route exists in `/docs` or `openapi.json`) — that's the only check that actually would have caught the incident above.
+
+A real migration tool (Alembic) is still worth adding before this schema stabilizes further; the startup patch only handles additive nullable columns, not renames, drops, or type changes.
+
+## Serverless package size
+
+Vercel Python serverless functions have a size ceiling (250MB unzipped on Hobby). This is the reason ML Forecasting uses scikit-learn (`sklearn` + `scipy`, ~130MB combined) rather than XGBoost, Prophet, or an LSTM/TensorFlow stack — those each add either a large native binary or a full deep-learning/probabilistic-programming dependency tree that risks blowing the limit and badly hurting cold-start time. If a future model genuinely needs one of those, moving the backend off Vercel serverless (back to an always-on host) would need to happen first.
 
 ## Known gaps
 

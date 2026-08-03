@@ -4,24 +4,35 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
   CircularProgress,
   Grid,
   MenuItem,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { EChart } from "../components/EChart";
 import { useCompany } from "../context/CompanyContext";
-import { getForecast, listProducts, setProductCost, uploadSalesCsv } from "../api/sales";
-import type { ForecastModel, ForecastResponse, Product } from "../api/types";
+import { compareForecastModels, getForecast, listProducts, setProductCost, uploadSalesCsv } from "../api/sales";
+import type { ForecastModel, ForecastResponse, ModelComparison, Product } from "../api/types";
 
 const MODELS: { value: ForecastModel; label: string }[] = [
   { value: "exponential_smoothing", label: "Exponential Smoothing" },
   { value: "moving_average", label: "Moving Average" },
   { value: "weighted_average", label: "Weighted Average" },
+  { value: "random_forest", label: "Random Forest (ML)" },
+  { value: "gradient_boosting", label: "Gradient Boosting (ML)" },
 ];
+
+const MODEL_LABEL: Record<string, string> = Object.fromEntries(MODELS.map((m) => [m.value, m.label]));
 
 export function SalesForecastPage() {
   const { company } = useCompany();
@@ -35,6 +46,9 @@ export function SalesForecastPage() {
   const [error, setError] = useState<string | null>(null);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [comparison, setComparison] = useState<ModelComparison | null>(null);
+  const [comparisonError, setComparisonError] = useState<string | null>(null);
+  const [comparisonLoading, setComparisonLoading] = useState(false);
 
   const loadProducts = async () => {
     if (!company) return;
@@ -74,6 +88,26 @@ export function SalesForecastPage() {
     if (productId) loadForecast();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId, model, periods]);
+
+  const loadComparison = async () => {
+    if (!company || !productId) return;
+    setComparisonLoading(true);
+    setComparisonError(null);
+    try {
+      const result = await compareForecastModels(company.id, productId);
+      setComparison(result);
+    } catch (err) {
+      setComparisonError(err instanceof Error ? err.message : "Failed to compare models");
+      setComparison(null);
+    } finally {
+      setComparisonLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setComparison(null);
+    setComparisonError(null);
+  }, [productId]);
 
   const handleUpload = async (file: File) => {
     if (!company) return;
@@ -244,6 +278,54 @@ export function SalesForecastPage() {
               ))}
             </Grid>
           )}
+
+          <Card variant="outlined">
+            <CardContent>
+              <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }} spacing={1}>
+                <Typography variant="subtitle1">Model accuracy comparison</Typography>
+                <Button variant="outlined" size="small" onClick={loadComparison} disabled={!productId || comparisonLoading}>
+                  {comparisonLoading ? "Comparing…" : "Compare models"}
+                </Button>
+              </Stack>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                Walk-forward backtest: for each historical month, forecasts one period ahead using only the data available
+                up to that point, then compares to what actually happened. Lower MAPE is more accurate. The ML models need
+                at least 6 months of history to produce a result.
+              </Typography>
+              {comparisonError && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  {comparisonError}
+                </Alert>
+              )}
+              {comparison && (
+                <TableContainer sx={{ mt: 2 }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Model</TableCell>
+                        <TableCell align="right">MAPE</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {Object.entries(comparison.mape_by_model)
+                        .sort(([, a], [, b]) => (a ?? Infinity) - (b ?? Infinity))
+                        .map(([modelName, mape], i) => (
+                          <TableRow key={modelName}>
+                            <TableCell>
+                              {MODEL_LABEL[modelName] ?? modelName}
+                              {i === 0 && mape !== null && <Chip size="small" color="success" label="Best" sx={{ ml: 1 }} />}
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                              {mape === null ? "—" : `${mape}%`}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </CardContent>
+          </Card>
         </>
       )}
     </Stack>

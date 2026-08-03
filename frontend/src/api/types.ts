@@ -27,7 +27,19 @@ export interface ForecastResponse {
   points: ForecastPoint[];
 }
 
-export type ForecastModel = "moving_average" | "weighted_average" | "exponential_smoothing";
+export type ForecastModel =
+  | "moving_average"
+  | "weighted_average"
+  | "exponential_smoothing"
+  | "random_forest"
+  | "gradient_boosting";
+
+export interface ModelComparison {
+  company_id: string;
+  product_id: string;
+  history_periods: number;
+  mape_by_model: Record<string, number | null>;
+}
 
 export interface SalesUploadResult {
   rows_imported: number;
