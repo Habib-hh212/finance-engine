@@ -30,6 +30,9 @@ class BudgetStatus:
 EDITABLE_BUDGET_STATUSES = {BudgetStatus.DRAFT, BudgetStatus.REJECTED}
 
 
+GL_FORECAST_ROLES = {"cash", "accounts_receivable", "accounts_payable"}
+
+
 class GLAccount(Base):
     __tablename__ = "gl_accounts"
 
@@ -38,6 +41,10 @@ class GLAccount(Base):
     code: Mapped[str] = mapped_column(String(20), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     category: Mapped[str] = mapped_column(String(20), nullable=False)  # revenue | expense | asset | liability | equity
+    # Which line of the Balance Sheet Forecast this account feeds -- see
+    # GL_FORECAST_ROLES. None for accounts with no special forecasting
+    # role (carried forward flat in the forecast rather than projected).
+    forecast_role: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
 
 
 # Budget.type mixes "what it covers" (revenue/expense/master) with "how it's

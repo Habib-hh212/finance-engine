@@ -18,6 +18,7 @@ from app.api import (
     profitability,
     sales,
     standard_costing,
+    statement_forecast,
 )
 from app.auth import get_current_user
 from app.database import Base, engine
@@ -59,6 +60,7 @@ app.include_router(insights.router, dependencies=_auth_dep)
 app.include_router(financial_statements.router, dependencies=_auth_dep)
 app.include_router(standard_costing.router, dependencies=_auth_dep)
 app.include_router(marginal_costing.router, dependencies=_auth_dep)
+app.include_router(statement_forecast.router, dependencies=_auth_dep)
 
 
 @app.get("/health")

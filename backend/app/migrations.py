@@ -30,6 +30,7 @@ ADDITIVE_COLUMNS = [
     ("budget_lines", "useful_life_years", "INTEGER"),
     ("budget_lines", "annual_cash_flow", "NUMERIC(18,2)"),
     ("actual_lines", "actual_quantity", "NUMERIC(18,4)"),
+    ("gl_accounts", "forecast_role", "VARCHAR(30)"),
 ]
 
 

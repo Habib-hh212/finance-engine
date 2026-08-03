@@ -17,6 +17,7 @@ from app.schemas.budget import (
     BudgetVersionOut,
     GLAccountCreate,
     GLAccountOut,
+    GLAccountUpdate,
 )
 from app.schemas.variance import CapitalAppraisalRowOut, FlexibleVarianceRowOut
 from app.services import budget_workflow, capital_budget, rolling_budget, variance
@@ -36,6 +37,17 @@ def create_gl_account(company_id: uuid.UUID, payload: GLAccountCreate, db: Sessi
 @router.get("/gl-accounts", response_model=list[GLAccountOut])
 def list_gl_accounts(company_id: uuid.UUID, db: Session = Depends(get_db)):
     return db.query(GLAccount).filter(GLAccount.company_id == company_id).all()
+
+
+@router.patch("/gl-accounts/{account_id}", response_model=GLAccountOut)
+def update_gl_account(account_id: uuid.UUID, payload: GLAccountUpdate, db: Session = Depends(get_db)):
+    account = db.get(GLAccount, account_id)
+    if account is None:
+        raise HTTPException(status_code=404, detail="GL account not found")
+    account.forecast_role = payload.forecast_role
+    db.commit()
+    db.refresh(account)
+    return account
 
 
 @router.post("/budgets", response_model=BudgetOut)

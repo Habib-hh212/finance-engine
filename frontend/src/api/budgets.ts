@@ -9,12 +9,21 @@ import type {
   FlexibleVarianceRow,
   GLAccount,
   GLCategory,
+  GLForecastRole,
 } from "./types";
 
 export const listGLAccounts = (companyId: string) => apiGet<GLAccount[]>(`/gl-accounts?company_id=${companyId}`);
 
-export const createGLAccount = (companyId: string, code: string, name: string, category: GLCategory) =>
-  apiPost<GLAccount>(`/gl-accounts?company_id=${companyId}`, { code, name, category });
+export const createGLAccount = (
+  companyId: string,
+  code: string,
+  name: string,
+  category: GLCategory,
+  forecast_role?: GLForecastRole,
+) => apiPost<GLAccount>(`/gl-accounts?company_id=${companyId}`, { code, name, category, forecast_role });
+
+export const updateGLAccount = (accountId: string, forecast_role: GLForecastRole | null) =>
+  apiPatch<GLAccount>(`/gl-accounts/${accountId}`, { forecast_role });
 
 export const listBudgets = (companyId: string) => apiGet<Budget[]>(`/budgets?company_id=${companyId}`);
 

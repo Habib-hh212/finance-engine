@@ -51,7 +51,7 @@ def _month_start(d: date) -> date:
     return date(d.year, d.month, 1)
 
 
-def _forecast_sales_by_month(db: Session, company_id, periods: int) -> dict:
+def forecast_sales_by_month(db: Session, company_id, periods: int) -> dict:
     """Sum an exponential-smoothing sales forecast across every product with
     history, bucketed by the calendar month each forecast point lands in."""
     totals: dict = defaultdict(float)
@@ -111,7 +111,7 @@ def build_forecast(
     start_period = _month_start(start_period)
     target_months = [start_period + relativedelta(months=i) for i in range(periods)]
 
-    sales_by_month = _forecast_sales_by_month(db, company_id, periods)
+    sales_by_month = forecast_sales_by_month(db, company_id, periods)
     lag_months = round(collection_lag_days / 30)
     collections_by_month: dict = defaultdict(float)
     for month, amount in sales_by_month.items():

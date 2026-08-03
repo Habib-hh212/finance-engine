@@ -4,11 +4,18 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel
 
+GLForecastRole = Literal["cash", "accounts_receivable", "accounts_payable"]
+
 
 class GLAccountCreate(BaseModel):
     code: str
     name: str
     category: Literal["revenue", "expense", "asset", "liability", "equity"]
+    forecast_role: Optional[GLForecastRole] = None
+
+
+class GLAccountUpdate(BaseModel):
+    forecast_role: Optional[GLForecastRole] = None
 
 
 class GLAccountOut(BaseModel):
@@ -16,6 +23,7 @@ class GLAccountOut(BaseModel):
     code: str
     name: str
     category: str
+    forecast_role: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

@@ -43,6 +43,7 @@ import {
   rollForwardBudget,
   submitBudget,
   updateBudgetLine,
+  updateGLAccount,
 } from "../api/budgets";
 import type {
   Budget,
@@ -55,6 +56,7 @@ import type {
   FlexibleVarianceRow,
   GLAccount,
   GLCategory,
+  GLForecastRole,
 } from "../api/types";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -112,6 +114,7 @@ export function BudgetPlanningPage() {
   const [glCode, setGlCode] = useState("");
   const [glName, setGlName] = useState("");
   const [glCategory, setGlCategory] = useState<GLCategory>("expense");
+  const [glForecastRole, setGlForecastRole] = useState<GLForecastRole | "">("");
 
   const [budgetName, setBudgetName] = useState("");
   const [budgetType, setBudgetType] = useState<BudgetType>("expense");
@@ -173,10 +176,20 @@ export function BudgetPlanningPage() {
   const handleCreateGl = () =>
     runAction(async () => {
       if (!company || !glCode || !glName) return;
-      await createGLAccount(company.id, glCode, glName, glCategory);
+      await createGLAccount(company.id, glCode, glName, glCategory, glForecastRole || undefined);
       setGlCode("");
       setGlName("");
+      setGlForecastRole("");
     });
+
+  const handleChangeGlRole = (accountId: string, role: GLForecastRole | "") =>
+    runAction(() => updateGLAccount(accountId, role || null));
+
+  const rolesForCategory = (category: GLCategory): GLForecastRole[] => {
+    if (category === "asset") return ["cash", "accounts_receivable"];
+    if (category === "liability") return ["accounts_payable"];
+    return [];
+  };
 
   const handleCreateBudget = () =>
     runAction(async () => {
@@ -309,25 +322,66 @@ export function BudgetPlanningPage() {
                   GL Accounts
                 </Typography>
                 <Stack spacing={1}>
-                  {glAccounts.map((g) => (
-                    <Stack key={g.id} direction="row" sx={{ alignItems: "center" }} spacing={1}>
-                      <Typography variant="body2">
-                        {g.code} — {g.name}
-                      </Typography>
-                      <Chip size="small" label={g.category} />
-                    </Stack>
-                  ))}
+                  {glAccounts.map((g) => {
+                    const options = rolesForCategory(g.category);
+                    return (
+                      <Stack key={g.id} direction="row" sx={{ alignItems: "center", flexWrap: "wrap" }} spacing={1}>
+                        <Typography variant="body2">
+                          {g.code} — {g.name}
+                        </Typography>
+                        <Chip size="small" label={g.category} />
+                        {options.length > 0 && (
+                          <TextField
+                            select
+                            size="small"
+                            value={g.forecast_role ?? ""}
+                            onChange={(e) => handleChangeGlRole(g.id, e.target.value as GLForecastRole | "")}
+                            sx={{ minWidth: 150 }}
+                            slotProps={{ select: { displayEmpty: true } }}
+                          >
+                            <MenuItem value="">
+                              <em>No forecast role</em>
+                            </MenuItem>
+                            {options.map((role) => (
+                              <MenuItem key={role} value={role}>
+                                {role.replace(/_/g, " ")}
+                              </MenuItem>
+                            ))}
+                          </TextField>
+                        )}
+                      </Stack>
+                    );
+                  })}
                 </Stack>
                 <Stack spacing={1} sx={{ mt: 2 }}>
                   <TextField label="Code" size="small" value={glCode} onChange={(e) => setGlCode(e.target.value)} />
                   <TextField label="Name" size="small" value={glName} onChange={(e) => setGlName(e.target.value)} />
-                  <TextField select label="Category" size="small" value={glCategory} onChange={(e) => setGlCategory(e.target.value as GLCategory)}>
+                  <TextField select label="Category" size="small" value={glCategory} onChange={(e) => { setGlCategory(e.target.value as GLCategory); setGlForecastRole(""); }}>
                     <MenuItem value="revenue">Revenue</MenuItem>
                     <MenuItem value="expense">Expense</MenuItem>
                     <MenuItem value="asset">Asset</MenuItem>
                     <MenuItem value="liability">Liability</MenuItem>
                     <MenuItem value="equity">Equity</MenuItem>
                   </TextField>
+                  {rolesForCategory(glCategory).length > 0 && (
+                    <TextField
+                      select
+                      label="Forecast role (optional)"
+                      size="small"
+                      value={glForecastRole}
+                      onChange={(e) => setGlForecastRole(e.target.value as GLForecastRole | "")}
+                      slotProps={{ select: { displayEmpty: true } }}
+                    >
+                      <MenuItem value="">
+                        <em>None</em>
+                      </MenuItem>
+                      {rolesForCategory(glCategory).map((role) => (
+                        <MenuItem key={role} value={role}>
+                          {role.replace(/_/g, " ")}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  )}
                   <Button variant="outlined" size="small" onClick={handleCreateGl} disabled={!glCode || !glName}>
                     Add GL account
                   </Button>

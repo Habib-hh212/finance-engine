@@ -15,11 +15,18 @@ import {
 } from "@mui/material";
 import { useCompany } from "../context/CompanyContext";
 import { getBalanceSheet, getIncomeStatement } from "../api/financialStatements";
-import type { AccountAmount, BalanceSheet, IncomeStatement } from "../api/types";
+import { getBalanceSheetForecast, getIncomeStatementForecast } from "../api/statementForecast";
+import type { AccountAmount, BalanceSheet, BalanceSheetForecastPeriod, IncomeStatement, IncomeStatementForecastPeriod } from "../api/types";
 
 function currentMonthValue() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function nextMonthValue() {
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`;
 }
 
 const fmt = (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -61,6 +68,15 @@ export function FinancialStatementsPage() {
   const [balanceSheet, setBalanceSheet] = useState<BalanceSheet | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [forecastStartMonth, setForecastStartMonth] = useState(nextMonthValue());
+  const [forecastPeriods, setForecastPeriods] = useState("6");
+  const [dsoDays, setDsoDays] = useState("45");
+  const [dpoDays, setDpoDays] = useState("30");
+  const [collectionLagDays, setCollectionLagDays] = useState("30");
+  const [incomeForecast, setIncomeForecast] = useState<IncomeStatementForecastPeriod[]>([]);
+  const [balanceForecast, setBalanceForecast] = useState<BalanceSheetForecastPeriod[]>([]);
+  const [forecastError, setForecastError] = useState<string | null>(null);
+
   const load = async () => {
     if (!company) return;
     setError(null);
@@ -76,8 +92,31 @@ export function FinancialStatementsPage() {
     }
   };
 
+  const loadForecast = async () => {
+    if (!company) return;
+    setForecastError(null);
+    try {
+      const [incRows, balRows] = await Promise.all([
+        getIncomeStatementForecast(company.id, `${forecastStartMonth}-01`, Number(forecastPeriods)),
+        getBalanceSheetForecast(
+          company.id,
+          `${forecastStartMonth}-01`,
+          Number(forecastPeriods),
+          Number(dsoDays),
+          Number(dpoDays),
+          Number(collectionLagDays),
+        ),
+      ]);
+      setIncomeForecast(incRows);
+      setBalanceForecast(balRows);
+    } catch (err) {
+      setForecastError(err instanceof Error ? err.message : "Failed to load statement forecast");
+    }
+  };
+
   useEffect(() => {
     load();
+    loadForecast();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [company?.id]);
 
@@ -224,6 +263,112 @@ export function FinancialStatementsPage() {
                   />
                 </TableCell>
               </TableRow>
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      <Typography variant="h6">Financial Statement Forecast</Typography>
+      <Typography variant="caption" color="text.secondary">
+        Revenue is driven from the existing Sales Forecast; expense from approved budget lines on expense-category GL
+        accounts. Accounts Receivable/Payable are estimated from Days Sales/Payable Outstanding against those same
+        forecasts; Cash reuses the Cash Flow Forecast; Equity rolls forward actual equity by adding forecasted net
+        income each period, assuming no dividends or capital transactions. Every other balance sheet account is
+        carried forward flat — there's no driver for it, so "unchanged" is the honest choice. Tag GL accounts with a
+        forecast role (cash / accounts receivable / accounts payable) on the Budget Planning page to feed this.
+      </Typography>
+      {forecastError && <Alert severity="error">{forecastError}</Alert>}
+      <Stack direction="row" spacing={2} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+        <TextField
+          label="Start"
+          type="month"
+          size="small"
+          value={forecastStartMonth}
+          onChange={(e) => setForecastStartMonth(e.target.value)}
+          slotProps={{ inputLabel: { shrink: true } }}
+        />
+        <TextField label="Periods" type="number" size="small" value={forecastPeriods} onChange={(e) => setForecastPeriods(e.target.value)} sx={{ width: 100 }} />
+        <TextField label="DSO days" type="number" size="small" value={dsoDays} onChange={(e) => setDsoDays(e.target.value)} sx={{ width: 110 }} />
+        <TextField label="DPO days" type="number" size="small" value={dpoDays} onChange={(e) => setDpoDays(e.target.value)} sx={{ width: 110 }} />
+        <TextField
+          label="Collection lag (days)"
+          type="number"
+          size="small"
+          value={collectionLagDays}
+          onChange={(e) => setCollectionLagDays(e.target.value)}
+          sx={{ width: 160 }}
+        />
+        <Chip label="Refresh" onClick={loadForecast} color="primary" clickable />
+      </Stack>
+
+      {incomeForecast.length > 0 && (
+        <TableContainer component={Card} variant="outlined">
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Period</TableCell>
+                <TableCell align="right">Revenue</TableCell>
+                <TableCell align="right">Expense</TableCell>
+                <TableCell align="right">Net Profit</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {incomeForecast.map((row) => (
+                <TableRow key={row.period}>
+                  <TableCell>{row.period}</TableCell>
+                  <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(row.revenue_forecast)}</TableCell>
+                  <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(row.expense_forecast)}</TableCell>
+                  <TableCell
+                    align="right"
+                    sx={{ fontVariantNumeric: "tabular-nums", color: row.net_profit_forecast < 0 ? "error.main" : "success.main" }}
+                  >
+                    {fmt(row.net_profit_forecast)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      {balanceForecast.length > 0 && (
+        <TableContainer component={Card} variant="outlined">
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Period</TableCell>
+                <TableCell align="right">AR</TableCell>
+                <TableCell align="right">Cash</TableCell>
+                <TableCell align="right">Other Assets</TableCell>
+                <TableCell align="right">Total Assets</TableCell>
+                <TableCell align="right">AP</TableCell>
+                <TableCell align="right">Other Liab.</TableCell>
+                <TableCell align="right">Total Liab.</TableCell>
+                <TableCell align="right">Equity</TableCell>
+                <TableCell align="center">Financing Gap</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {balanceForecast.map((row) => (
+                <TableRow key={row.period}>
+                  <TableCell>{row.period}</TableCell>
+                  <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(row.accounts_receivable)}</TableCell>
+                  <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(row.cash)}</TableCell>
+                  <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(row.other_assets)}</TableCell>
+                  <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>{fmt(row.total_assets)}</TableCell>
+                  <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(row.accounts_payable)}</TableCell>
+                  <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(row.other_liabilities)}</TableCell>
+                  <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>{fmt(row.total_liabilities)}</TableCell>
+                  <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>{fmt(row.equity)}</TableCell>
+                  <TableCell align="center">
+                    <Chip
+                      size="small"
+                      label={row.is_balanced ? "None" : fmt(row.difference)}
+                      color={row.is_balanced ? "success" : "warning"}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </TableContainer>

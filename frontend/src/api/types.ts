@@ -36,12 +36,14 @@ export interface SalesUploadResult {
 }
 
 export type GLCategory = "revenue" | "expense" | "asset" | "liability" | "equity";
+export type GLForecastRole = "cash" | "accounts_receivable" | "accounts_payable";
 
 export interface GLAccount {
   id: string;
   code: string;
   name: string;
   category: GLCategory;
+  forecast_role: GLForecastRole | null;
 }
 
 export type BudgetType = "revenue" | "expense" | "master" | "zero_based" | "flexible" | "rolling" | "capital";
@@ -317,4 +319,25 @@ export interface BudgetVersion {
   version_number: number;
   submitted_at: string;
   lines_snapshot: Record<string, unknown>[];
+}
+
+export interface IncomeStatementForecastPeriod {
+  period: string;
+  revenue_forecast: number;
+  expense_forecast: number;
+  net_profit_forecast: number;
+}
+
+export interface BalanceSheetForecastPeriod {
+  period: string;
+  accounts_receivable: number;
+  cash: number;
+  other_assets: number;
+  total_assets: number;
+  accounts_payable: number;
+  other_liabilities: number;
+  total_liabilities: number;
+  equity: number;
+  is_balanced: boolean;
+  difference: number;
 }
