@@ -58,11 +58,22 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <Box sx={{ display: "flex" }}>
-      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }} color="default" elevation={1}>
+      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }} color="default" elevation={0}>
         <Toolbar sx={{ gap: 2 }}>
-          <Typography variant="h6" noWrap sx={{ fontWeight: 700, color: "primary.main" }}>
-            Finance Engine
-          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+            <Box
+              sx={{
+                width: 10,
+                height: 10,
+                borderRadius: "3px",
+                bgcolor: "primary.main",
+                transform: "rotate(45deg)",
+              }}
+            />
+            <Typography variant="h6" noWrap sx={{ color: "primary.dark", lineHeight: 1 }}>
+              Finance Engine
+            </Typography>
+          </Box>
           <Box sx={{ flexGrow: 1 }} />
           {companies.length > 0 && (
             <Select
@@ -101,21 +112,30 @@ export function Layout({ children }: { children: ReactNode }) {
         }}
       >
         <Toolbar />
-        <Box sx={{ overflow: "auto" }}>
-          <List>
-            {NAV_ITEMS.map((item) => (
-              <ListItemButton
-                key={item.to}
-                component={NavLink}
-                to={item.to}
-                selected={location.pathname === item.to}
-              >
-                <ListItemIcon>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.label} />
-              </ListItemButton>
-            ))}
+        <Box sx={{ overflow: "auto", pt: 1 }}>
+          <List sx={{ px: 0.5 }}>
+            {NAV_ITEMS.map((item) => {
+              const active = location.pathname === item.to;
+              return (
+                <ListItemButton
+                  key={item.to}
+                  component={NavLink}
+                  to={item.to}
+                  selected={active}
+                  sx={{ py: 0.9 }}
+                >
+                  <ListItemIcon sx={{ minWidth: 38, color: active ? "primary.main" : "text.secondary" }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={item.label}
+                    slotProps={{ primary: { sx: { fontSize: "0.9rem", fontWeight: active ? 600 : 500 } } }}
+                  />
+                </ListItemButton>
+              );
+            })}
           </List>
-          <Divider />
+          <Divider sx={{ mx: 2, my: 1 }} />
         </Box>
       </Drawer>
       <Box component="main" sx={{ flexGrow: 1, p: 3, bgcolor: "background.default", minHeight: "100vh" }}>
