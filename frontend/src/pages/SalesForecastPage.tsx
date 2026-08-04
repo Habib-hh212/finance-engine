@@ -27,11 +27,19 @@ import {
   downloadForecast,
   getDemandForecast,
   getForecast,
+  getMonteCarloForecast,
   listProducts,
   setProductCost,
   uploadSalesCsv,
 } from "../api/sales";
-import type { DemandForecastResponse, ForecastModel, ForecastResponse, ModelComparison, Product } from "../api/types";
+import type {
+  DemandForecastResponse,
+  ForecastModel,
+  ForecastResponse,
+  ModelComparison,
+  MonteCarloResponse,
+  Product,
+} from "../api/types";
 
 const MODELS: { value: ForecastModel; label: string }[] = [
   { value: "exponential_smoothing", label: "Exponential Smoothing" },
@@ -61,6 +69,9 @@ export function SalesForecastPage() {
   const [demand, setDemand] = useState<DemandForecastResponse | null>(null);
   const [demandError, setDemandError] = useState<string | null>(null);
   const [demandLoading, setDemandLoading] = useState(false);
+  const [monteCarlo, setMonteCarlo] = useState<MonteCarloResponse | null>(null);
+  const [monteCarloError, setMonteCarloError] = useState<string | null>(null);
+  const [monteCarloLoading, setMonteCarloLoading] = useState(false);
 
   const loadProducts = async () => {
     if (!company) return;
@@ -121,6 +132,8 @@ export function SalesForecastPage() {
     setComparisonError(null);
     setDemand(null);
     setDemandError(null);
+    setMonteCarlo(null);
+    setMonteCarloError(null);
   }, [productId]);
 
   const loadDemand = async () => {
@@ -137,6 +150,52 @@ export function SalesForecastPage() {
       setDemandLoading(false);
     }
   };
+
+  const loadMonteCarlo = async () => {
+    if (!company || !productId) return;
+    setMonteCarloLoading(true);
+    setMonteCarloError(null);
+    try {
+      const result = await getMonteCarloForecast(company.id, productId, model, periods);
+      setMonteCarlo(result);
+    } catch (err) {
+      setMonteCarloError(err instanceof Error ? err.message : "Failed to run the simulation");
+      setMonteCarlo(null);
+    } finally {
+      setMonteCarloLoading(false);
+    }
+  };
+
+  const monteCarloChartOption = monteCarlo
+    ? {
+        tooltip: { trigger: "axis" as const },
+        legend: { data: ["p10", "p50 (median)", "p90"], top: 0 },
+        grid: { left: 70, right: 30, top: 50, bottom: 40 },
+        xAxis: { type: "category" as const, data: monteCarlo.points.map((p) => p.period) },
+        yAxis: { type: "value" as const },
+        series: [
+          {
+            name: "p10",
+            type: "line" as const,
+            data: monteCarlo.points.map((p) => p.p10),
+            lineStyle: { opacity: 0 },
+            areaStyle: { color: "#2f5d5022" },
+            stack: "band",
+            symbol: "none",
+          },
+          {
+            name: "p90",
+            type: "line" as const,
+            data: monteCarlo.points.map((p) => p.p90 - p.p10),
+            lineStyle: { opacity: 0 },
+            areaStyle: { color: "#2f5d5022" },
+            stack: "band",
+            symbol: "none",
+          },
+          { name: "p50 (median)", type: "line" as const, data: monteCarlo.points.map((p) => p.p50), color: "#2f5d50" },
+        ],
+      }
+    : null;
 
   const handleUpload = async (file: File) => {
     if (!company) return;
@@ -402,6 +461,35 @@ export function SalesForecastPage() {
                     </Grid>
                   ))}
                 </Grid>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card variant="outlined">
+            <CardContent>
+              <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }} spacing={1}>
+                <Typography variant="subtitle1">Monte Carlo simulation</Typography>
+                <Button variant="outlined" size="small" onClick={loadMonteCarlo} disabled={!productId || monteCarloLoading}>
+                  {monteCarloLoading ? "Simulating…" : "Run simulation"}
+                </Button>
+              </Stack>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                1,000 random trials against the currently selected model and periods, each accumulating an independent
+                shock period over period — unlike the fixed-width band above, this p10/p50/p90 range genuinely widens
+                the further out the horizon goes, since more can go differently between now and month 6 than between
+                now and month 1.
+              </Typography>
+              {monteCarloError && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  {monteCarloError}
+                </Alert>
+              )}
+              {monteCarloChartOption && (
+                <Card variant="outlined" sx={{ mt: 2 }}>
+                  <CardContent>
+                    <EChart option={monteCarloChartOption} height={320} />
+                  </CardContent>
+                </Card>
               )}
             </CardContent>
           </Card>

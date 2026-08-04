@@ -1,5 +1,13 @@
 import { apiDownload, apiGet, apiPatch, apiUpload } from "./client";
-import type { DemandForecastResponse, ForecastModel, ForecastResponse, ModelComparison, Product, SalesUploadResult } from "./types";
+import type {
+  DemandForecastResponse,
+  ForecastModel,
+  ForecastResponse,
+  ModelComparison,
+  MonteCarloResponse,
+  Product,
+  SalesUploadResult,
+} from "./types";
 
 export const listProducts = (companyId: string) => apiGet<Product[]>(`/products?company_id=${companyId}`);
 
@@ -31,4 +39,9 @@ export const downloadForecast = (companyId: string, productId: string, model: Fo
   apiDownload(
     `/sales/forecast/export?company_id=${companyId}&product_id=${productId}&model=${model}&periods=${periods}`,
     "sales-forecast.xlsx",
+  );
+
+export const getMonteCarloForecast = (companyId: string, productId: string, model: ForecastModel, periods: number, trials = 1000) =>
+  apiGet<MonteCarloResponse>(
+    `/sales/forecast/monte-carlo?company_id=${companyId}&product_id=${productId}&model=${model}&periods=${periods}&trials=${trials}`,
   );

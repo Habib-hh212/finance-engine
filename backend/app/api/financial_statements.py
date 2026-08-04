@@ -1,7 +1,8 @@
+import re
 import uuid
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -12,10 +13,14 @@ from app.schemas.financial_statements import (
     IncomeStatementTrendPointOut,
     StatementUploadResult,
 )
-from app.services import financial_statements, statement_import
+from app.services import financial_statements, report_generation, statement_import
 from app.services.excel_export import sheets_to_xlsx_response
 
 router = APIRouter(prefix="/reports", tags=["financial-statements"])
+
+
+def _safe_filename(name: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", name).strip("-") or "report"
 
 
 @router.post("/upload-statements", response_model=StatementUploadResult)
@@ -107,4 +112,36 @@ def export_balance_sheet(company_id: uuid.UUID, as_of: date = Query(...), db: Se
     return sheets_to_xlsx_response(
         {"Assets": asset_rows, "Liabilities": liability_rows, "Equity": equity_rows},
         f"balance-sheet-{as_of}.xlsx",
+    )
+
+
+@router.get("/board-report/pdf")
+def get_board_report_pdf(
+    company_id: uuid.UUID,
+    start_period: date = Query(...),
+    end_period: date = Query(...),
+    as_of: date = Query(...),
+    db: Session = Depends(get_db),
+):
+    data = report_generation.build_report_data(db, company_id, start_period, end_period, as_of)
+    pdf_bytes = report_generation.render_pdf(data)
+    filename = f"{_safe_filename(data.company_name)}-financial-report.pdf"
+    return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+@router.get("/board-report/pptx")
+def get_board_report_pptx(
+    company_id: uuid.UUID,
+    start_period: date = Query(...),
+    end_period: date = Query(...),
+    as_of: date = Query(...),
+    db: Session = Depends(get_db),
+):
+    data = report_generation.build_report_data(db, company_id, start_period, end_period, as_of)
+    pptx_bytes = report_generation.render_pptx(data)
+    filename = f"{_safe_filename(data.company_name)}-financial-report.pptx"
+    return Response(
+        content=pptx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

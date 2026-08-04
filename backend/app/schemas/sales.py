@@ -49,6 +49,24 @@ class DemandForecastResponse(BaseModel):
     points: list[DemandForecastPointOut]
 
 
+class MonteCarloPointOut(BaseModel):
+    period: date
+    p10: float
+    p50: float
+    p90: float
+    mean: float
+    currency: str
+
+
+class MonteCarloResponse(BaseModel):
+    company_id: uuid.UUID
+    product_id: uuid.UUID
+    model: str
+    trials: int
+    history_periods: int
+    points: list[MonteCarloPointOut]
+
+
 class CompanyCreate(BaseModel):
     name: str
     base_currency: str = "USD"

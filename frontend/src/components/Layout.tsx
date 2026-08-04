@@ -8,6 +8,8 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import PrecisionManufacturingIcon from "@mui/icons-material/PrecisionManufacturing";
 import TimelineIcon from "@mui/icons-material/Timeline";
 import ContactMailIcon from "@mui/icons-material/ContactMail";
+import HistoryIcon from "@mui/icons-material/History";
+import CurrencyExchangeIcon from "@mui/icons-material/CurrencyExchange";
 import {
   AppBar,
   Box,
@@ -43,6 +45,8 @@ const NAV_ITEMS = [
   { to: "/financial-statements", label: "Financial Statements", icon: <DescriptionIcon /> },
   { to: "/standard-costing", label: "Standard Costing", icon: <PrecisionManufacturingIcon /> },
   { to: "/scenarios", label: "Scenario Planning", icon: <TimelineIcon /> },
+  { to: "/fx-scenario", label: "FX Scenario", icon: <CurrencyExchangeIcon /> },
+  { to: "/audit-trail", label: "Audit Trail", icon: <HistoryIcon /> },
   { to: "/contact", label: "Contact", icon: <ContactMailIcon /> },
 ];
 

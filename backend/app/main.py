@@ -5,6 +5,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
+    audit,
     auth,
     budgets,
     cashflow,
@@ -12,6 +13,7 @@ from app.api import (
     controlling,
     cost_centers,
     financial_statements,
+    fx,
     insights,
     kpis,
     marginal_costing,
@@ -50,6 +52,7 @@ app.add_middleware(
 app.include_router(auth.router)
 
 _auth_dep = [Depends(get_current_user)]
+app.include_router(audit.router, dependencies=_auth_dep)
 app.include_router(companies.router, dependencies=_auth_dep)
 app.include_router(sales.router, dependencies=_auth_dep)
 app.include_router(products.router, dependencies=_auth_dep)
@@ -57,6 +60,7 @@ app.include_router(budgets.router, dependencies=_auth_dep)
 app.include_router(cashflow.router, dependencies=_auth_dep)
 app.include_router(controlling.router, dependencies=_auth_dep)
 app.include_router(cost_centers.router, dependencies=_auth_dep)
+app.include_router(fx.router, dependencies=_auth_dep)
 app.include_router(profitability.router, dependencies=_auth_dep)
 app.include_router(kpis.router, dependencies=_auth_dep)
 app.include_router(insights.router, dependencies=_auth_dep)

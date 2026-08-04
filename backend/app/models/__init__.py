@@ -1,4 +1,5 @@
 from app.models.actual import ActualLine
+from app.models.audit_log import AuditLog
 from app.models.budget import Approval, Budget, BudgetLine, BudgetStatus, BudgetVersion, GLAccount
 from app.models.cashflow import CASH_ITEM_CATEGORIES, CashItem
 from app.models.company import Company
@@ -33,4 +34,5 @@ __all__ = [
     "BudgetVersion",
     "Scenario",
     "CostCenter",
+    "AuditLog",
 ]

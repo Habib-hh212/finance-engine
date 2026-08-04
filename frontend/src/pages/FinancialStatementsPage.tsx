@@ -17,10 +17,14 @@ import {
 } from "@mui/material";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DownloadIcon from "@mui/icons-material/Download";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import SlideshowIcon from "@mui/icons-material/Slideshow";
 import { EChart } from "../components/EChart";
 import { useCompany } from "../context/CompanyContext";
 import {
   downloadBalanceSheet,
+  downloadBoardReportPdf,
+  downloadBoardReportPptx,
   downloadIncomeStatement,
   getBalanceSheet,
   getIncomeStatement,
@@ -241,6 +245,36 @@ export function FinancialStatementsPage() {
           </Stack>
         </Card>
       )}
+
+      <Card variant="outlined">
+        <Stack direction="row" spacing={2} sx={{ alignItems: "center", flexWrap: "wrap", p: 2 }}>
+          <Typography variant="subtitle1" sx={{ mr: "auto" }}>
+            Board Report
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ width: "100%", mb: 1 }}>
+            KPIs, Income Statement, and Balance Sheet for the ranges above, as a formatted document instead of a raw
+            export.
+          </Typography>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<PictureAsPdfIcon />}
+            onClick={() => downloadBoardReportPdf(company!.id, `${startMonth}-01`, `${endMonth}-01`, `${asOfMonth}-28`)}
+            disabled={!company}
+          >
+            Download PDF
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<SlideshowIcon />}
+            onClick={() => downloadBoardReportPptx(company!.id, `${startMonth}-01`, `${endMonth}-01`, `${asOfMonth}-28`)}
+            disabled={!company}
+          >
+            Download PowerPoint
+          </Button>
+        </Stack>
+      </Card>
 
       <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
         <Typography variant="h6">Income Statement</Typography>

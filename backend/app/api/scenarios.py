@@ -4,19 +4,24 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_user
 from app.database import get_db
-from app.models import Scenario
+from app.models import Scenario, User
 from app.schemas.scenario import ScenarioCreate, ScenarioForecastOut, ScenarioOut
 from app.schemas.statement_forecast import BalanceSheetForecastPeriodOut, IncomeStatementForecastPeriodOut
-from app.services import statement_forecast
+from app.services import audit, statement_forecast
 
 router = APIRouter(tags=["scenarios"])
 
 
 @router.post("/scenarios", response_model=ScenarioOut)
-def create_scenario(company_id: uuid.UUID, payload: ScenarioCreate, db: Session = Depends(get_db)):
+def create_scenario(
+    company_id: uuid.UUID, payload: ScenarioCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
     scenario = Scenario(company_id=company_id, **payload.model_dump())
     db.add(scenario)
+    db.flush()
+    audit.record(db, company_id, "scenario", scenario.id, "create", current_user, f"Created scenario '{scenario.name}'")
     db.commit()
     db.refresh(scenario)
     return scenario
@@ -28,10 +33,11 @@ def list_scenarios(company_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @router.delete("/scenarios/{scenario_id}", status_code=204)
-def delete_scenario(scenario_id: uuid.UUID, db: Session = Depends(get_db)):
+def delete_scenario(scenario_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     scenario = db.get(Scenario, scenario_id)
     if scenario is None:
         raise HTTPException(status_code=404, detail="Scenario not found")
+    audit.record(db, scenario.company_id, "scenario", scenario.id, "delete", current_user, f"Deleted scenario '{scenario.name}'")
     db.delete(scenario)
     db.commit()
 

@@ -406,6 +406,24 @@ export interface DemandForecastResponse {
   points: DemandForecastPoint[];
 }
 
+export interface MonteCarloPoint {
+  period: string;
+  p10: number;
+  p50: number;
+  p90: number;
+  mean: number;
+  currency: string;
+}
+
+export interface MonteCarloResponse {
+  company_id: string;
+  product_id: string;
+  model: string;
+  trials: number;
+  history_periods: number;
+  points: MonteCarloPoint[];
+}
+
 export interface StatementUploadResult {
   rows_imported: number;
   accounts_created: number;
@@ -420,6 +438,43 @@ export interface IncomeStatementTrendPoint {
 }
 
 export type StatementForecastMethod = "driver_based" | "historical_trend";
+
+export interface ExchangeRate {
+  id: string;
+  from_currency: string;
+  to_currency: string;
+  rate_date: string;
+  rate: number;
+}
+
+export interface FxExposureLine {
+  currency: string;
+  period: string;
+  native_amount: number;
+  rate_used: number | null;
+  base_amount: number | null;
+}
+
+export interface FxScenario {
+  base_currency: string;
+  shock_pct: number;
+  lines: FxExposureLine[];
+  total_base_actual: number;
+  total_base_shocked: number;
+  impact: number;
+  unrated_currencies: string[];
+}
+
+export interface AuditLogEntry {
+  id: string;
+  entity_type: string;
+  entity_id: string | null;
+  action: string;
+  actor_email: string;
+  actor_name: string;
+  summary: string;
+  created_at: string;
+}
 
 export interface CustomerChurnRisk {
   customer_id: string;

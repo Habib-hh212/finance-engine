@@ -240,6 +240,19 @@ A maintenance/enhancement pass requested directly against the live app (bug repo
 
 ---
 
+## 6i. Phase 4, first slice: Audit Trail, Monte Carlo, PDF/PPT reports, FX Scenario — done
+
+Four of the seven Phase 4 items (§6). ERP/system integrations and Azure AD/SSO need real external accounts and credentials from the user, so they weren't started blind; ESG metrics wasn't picked. Multi-currency scenario engine shipped in a deliberately narrower form than the original one-line description implied — see below.
+
+- **Audit Trail** (`AuditLog` model, `app/services/audit.py`, `GET /audit-log`) — a flat human-readable `summary` per mutating action (not a structured before/after diff) on budgets through their full approval lifecycle, actuals, GL accounts, cost centers, and scenarios, each attributed to the authenticated user who triggered it. `company_id` is nullable on the model specifically because exchange rates (below) are global, not company-owned — their audit rows carry no company attribution rather than a fabricated one.
+- **Monte Carlo simulation** (`app/services/monte_carlo.py`, `GET /sales/forecast/monte-carlo`) — 1,000 random trials producing a p10/p50/p90 band per period, layered on the *same* point-forecast models Sales Forecasting already has. The meaningful difference from the existing fixed-width confidence interval: each trial accumulates an independent shock period-over-period (`np.cumsum`), so the band genuinely widens further into the horizon instead of staying a constant width forecast after forecast — closer to how uncertainty actually compounds in a real multi-period projection.
+- **Full PDF/PPT report generation** (`app/services/report_generation.py`, `GET /reports/board-report/pdf` and `/pptx`) — a "Board Report" combining KPIs, Income Statement, and Balance Sheet as an actual formatted document (reportlab for PDF, python-pptx for PPTX) rather than the raw table dumps the Excel exports already provide. Reuses `kpis.compute_kpis` and `financial_statements.income_statement`/`balance_sheet` directly — no new data path, just a new rendering.
+- **Multi-currency FX Scenario** (`ExchangeRate` — existed since Phase 1 but had zero real usage anywhere until now; `app/services/fx.py`, `app/services/fx_scenario.py`, `POST/GET /exchange-rates`, `GET /fx/scenario`) — the currency-risk counterpart to Scenario Planning's growth what-ifs: converts a company's non-base-currency *sales* actuals into base currency using the latest rate on file as of each period, then shows what that same native-currency total would be worth under a hypothetical shock percentage. Deliberately scoped to sales actuals only, not a retrofit of real conversion into every existing report (Financial Statements, KPIs, Cash Flow Forecast, etc. all still sum `amount` fields as if single-currency, exactly as before) — doing that everywhere at once was a wider and riskier change than "add FX" should have been in one pass. `latest_rate()` never returns a future-dated rate and never invents a 1:1 fallback when none exists; a currency with no rate on file is surfaced as excluded, not silently defaulted.
+
+12 new test files across the four features (32 new tests, 148 total passing), ruff clean, `tsc -b` clean. Verified end-to-end in a real local browser (an audit entry appearing after a real mutation, a Monte Carlo band rendering with a real 200 response, both Board Report downloads firing, and a real EUR sale converting through a real saved exchange rate into the FX Scenario totals) before deploying.
+
+---
+
 ## 7. Open decisions before Phase 1 build starts
 
 - [x] Repo name, owner, visibility (§5) — `Habib-hh212/finance-engine`, public

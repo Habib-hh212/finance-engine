@@ -4,19 +4,24 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_user
 from app.database import get_db
-from app.models import ActualLine, Budget
+from app.models import ActualLine, Budget, User
 from app.schemas.actual import ActualLineCreate, ActualLineOut
 from app.schemas.variance import BudgetConsumptionOut, CostCenterVarianceRowOut, VarianceRowOut
-from app.services import variance
+from app.services import audit, variance
 
 router = APIRouter(tags=["cost-controlling"])
 
 
 @router.post("/actuals", response_model=ActualLineOut)
-def create_actual_line(company_id: uuid.UUID, payload: ActualLineCreate, db: Session = Depends(get_db)):
+def create_actual_line(
+    company_id: uuid.UUID, payload: ActualLineCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
     line = ActualLine(company_id=company_id, **payload.model_dump())
     db.add(line)
+    db.flush()
+    audit.record(db, company_id, "actual_line", line.id, "create", current_user, f"Posted an actual of {line.amount} {line.currency} for {line.period}")
     db.commit()
     db.refresh(line)
     return line

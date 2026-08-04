@@ -14,9 +14,11 @@ from app.schemas.sales import (
     ForecastPointOut,
     ForecastResponse,
     ModelComparisonOut,
+    MonteCarloPointOut,
+    MonteCarloResponse,
     SalesUploadResult,
 )
-from app.services import forecasting
+from app.services import forecasting, monte_carlo
 from app.services.excel_export import sheets_to_xlsx_response
 from app.services.sales_import import import_sales_file
 
@@ -136,6 +138,57 @@ def get_demand_forecast(
         company_id=company_id,
         product_id=product_id,
         model=model,
+        history_periods=len(actuals),
+        points=out_points,
+    )
+
+
+@router.get("/forecast/monte-carlo", response_model=MonteCarloResponse)
+def get_monte_carlo_forecast(
+    company_id: uuid.UUID,
+    product_id: uuid.UUID,
+    model: str = Query(
+        "exponential_smoothing",
+        description="moving_average | weighted_average | exponential_smoothing | random_forest | gradient_boosting",
+    ),
+    periods: int = Query(3, ge=1, le=24),
+    trials: int = Query(1000, ge=100, le=5000),
+    db: Session = Depends(get_db),
+):
+    """A p10/p50/p90 band per period from `trials` random simulations,
+    rather than the single fixed-width confidence interval `/sales/forecast`
+    returns -- see `app/services/monte_carlo.py` for why the band widens
+    the further out the horizon goes."""
+    actuals = _sales_history(db, company_id, product_id)
+    if not actuals:
+        raise HTTPException(status_code=404, detail="No sales history for this company/product")
+
+    history = pd.Series([float(a.amount) for a in actuals], index=[a.period for a in actuals])
+    currency = actuals[-1].currency
+
+    try:
+        points = monte_carlo.simulate(history, model=model, periods=periods, trials=trials)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    last_period: date = actuals[-1].period
+    out_points = [
+        MonteCarloPointOut(
+            period=last_period + relativedelta(months=p.period_offset),
+            p10=p.p10,
+            p50=p.p50,
+            p90=p.p90,
+            mean=p.mean,
+            currency=currency,
+        )
+        for p in points
+    ]
+
+    return MonteCarloResponse(
+        company_id=company_id,
+        product_id=product_id,
+        model=model,
+        trials=trials,
         history_periods=len(actuals),
         points=out_points,
     )

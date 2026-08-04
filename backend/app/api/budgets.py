@@ -3,8 +3,9 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_user
 from app.database import get_db
-from app.models import Approval, Budget, BudgetLine, BudgetVersion, GLAccount
+from app.models import Approval, Budget, BudgetLine, BudgetVersion, GLAccount, User
 from app.models.budget import DEFAULT_ROLLING_WINDOW_MONTHS, EDITABLE_BUDGET_STATUSES
 from app.schemas.budget import (
     ApprovalAction,
@@ -20,15 +21,19 @@ from app.schemas.budget import (
     GLAccountUpdate,
 )
 from app.schemas.variance import CapitalAppraisalRowOut, FlexibleVarianceRowOut
-from app.services import budget_workflow, capital_budget, rolling_budget, variance
+from app.services import audit, budget_workflow, capital_budget, rolling_budget, variance
 
 router = APIRouter(tags=["budgets"])
 
 
 @router.post("/gl-accounts", response_model=GLAccountOut)
-def create_gl_account(company_id: uuid.UUID, payload: GLAccountCreate, db: Session = Depends(get_db)):
+def create_gl_account(
+    company_id: uuid.UUID, payload: GLAccountCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
     account = GLAccount(company_id=company_id, **payload.model_dump())
     db.add(account)
+    db.flush()
+    audit.record(db, company_id, "gl_account", account.id, "create", current_user, f"Created GL account {account.code} {account.name}")
     db.commit()
     db.refresh(account)
     return account
@@ -40,23 +45,43 @@ def list_gl_accounts(company_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @router.patch("/gl-accounts/{account_id}", response_model=GLAccountOut)
-def update_gl_account(account_id: uuid.UUID, payload: GLAccountUpdate, db: Session = Depends(get_db)):
+def update_gl_account(
+    account_id: uuid.UUID,
+    payload: GLAccountUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     account = db.get(GLAccount, account_id)
     if account is None:
         raise HTTPException(status_code=404, detail="GL account not found")
     account.forecast_role = payload.forecast_role
+    audit.record(
+        db,
+        account.company_id,
+        "gl_account",
+        account.id,
+        "update",
+        current_user,
+        f"Set forecast role of {account.code} {account.name} to {payload.forecast_role or 'none'}",
+    )
     db.commit()
     db.refresh(account)
     return account
 
 
 @router.post("/budgets", response_model=BudgetOut)
-def create_budget(company_id: uuid.UUID, payload: BudgetCreate, db: Session = Depends(get_db)):
+def create_budget(
+    company_id: uuid.UUID, payload: BudgetCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
     data = payload.model_dump()
     if data["type"] == "rolling" and data["rolling_window_months"] is None:
         data["rolling_window_months"] = DEFAULT_ROLLING_WINDOW_MONTHS
     budget = Budget(company_id=company_id, **data)
     db.add(budget)
+    db.flush()
+    audit.record(
+        db, company_id, "budget", budget.id, "create", current_user, f"Created {data['type']} budget '{budget.name}' (FY{budget.fiscal_year})"
+    )
     db.commit()
     db.refresh(budget)
     return budget
@@ -87,7 +112,12 @@ def get_budget(budget_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @router.post("/budgets/{budget_id}/lines", response_model=list[BudgetLineOut])
-def add_budget_lines(budget_id: uuid.UUID, lines: list[BudgetLineIn], db: Session = Depends(get_db)):
+def add_budget_lines(
+    budget_id: uuid.UUID,
+    lines: list[BudgetLineIn],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     budget = _get_budget_or_404(db, budget_id)
     if budget.status not in EDITABLE_BUDGET_STATUSES:
         raise HTTPException(status_code=409, detail="Budget lines can only be edited while status is 'draft' or 'rejected'")
@@ -108,6 +138,9 @@ def add_budget_lines(budget_id: uuid.UUID, lines: list[BudgetLineIn], db: Sessio
         )
         db.add(record)
         created.append(record)
+    audit.record(
+        db, budget.company_id, "budget", budget.id, "update", current_user, f"Added {len(created)} line(s) to budget '{budget.name}'"
+    )
     db.commit()
     for record in created:
         db.refresh(record)
@@ -122,51 +155,83 @@ def _get_line_or_404(db: Session, budget_id: uuid.UUID, line_id: uuid.UUID) -> B
 
 
 @router.patch("/budgets/{budget_id}/lines/{line_id}", response_model=BudgetLineOut)
-def update_budget_line(budget_id: uuid.UUID, line_id: uuid.UUID, payload: BudgetLineUpdate, db: Session = Depends(get_db)):
+def update_budget_line(
+    budget_id: uuid.UUID,
+    line_id: uuid.UUID,
+    payload: BudgetLineUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     budget = _get_budget_or_404(db, budget_id)
     if budget.status not in EDITABLE_BUDGET_STATUSES:
         raise HTTPException(status_code=409, detail="Budget lines can only be edited while status is 'draft' or 'rejected'")
     line = _get_line_or_404(db, budget_id, line_id)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(line, field, value)
+    audit.record(db, budget.company_id, "budget_line", line.id, "update", current_user, f"Edited a line on budget '{budget.name}'")
     db.commit()
     db.refresh(line)
     return line
 
 
 @router.delete("/budgets/{budget_id}/lines/{line_id}", status_code=204)
-def delete_budget_line(budget_id: uuid.UUID, line_id: uuid.UUID, db: Session = Depends(get_db)):
+def delete_budget_line(
+    budget_id: uuid.UUID, line_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
     budget = _get_budget_or_404(db, budget_id)
     if budget.status not in EDITABLE_BUDGET_STATUSES:
         raise HTTPException(status_code=409, detail="Budget lines can only be edited while status is 'draft' or 'rejected'")
     line = _get_line_or_404(db, budget_id, line_id)
+    audit.record(db, budget.company_id, "budget_line", line.id, "delete", current_user, f"Deleted a line from budget '{budget.name}'")
     db.delete(line)
     db.commit()
 
 
 @router.post("/budgets/{budget_id}/submit", response_model=BudgetOut)
-def submit_budget(budget_id: uuid.UUID, db: Session = Depends(get_db)):
+def submit_budget(budget_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     budget = _get_budget_or_404(db, budget_id)
     try:
-        return budget_workflow.submit_budget(db, budget)
+        result = budget_workflow.submit_budget(db, budget)
+        audit.record(db, budget.company_id, "budget", budget.id, "submit", current_user, f"Submitted budget '{budget.name}' for approval")
+        db.commit()
+        db.refresh(result)
+        return result
     except budget_workflow.WorkflowError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.post("/budgets/{budget_id}/approve", response_model=BudgetOut)
-def approve_budget(budget_id: uuid.UUID, payload: ApprovalAction, db: Session = Depends(get_db)):
+def approve_budget(
+    budget_id: uuid.UUID, payload: ApprovalAction, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
     budget = _get_budget_or_404(db, budget_id)
+    role = budget_workflow.expected_role(budget)
     try:
-        return budget_workflow.approve_budget(db, budget, payload.actor_name, payload.comment)
+        result = budget_workflow.approve_budget(db, budget, payload.actor_name, payload.comment)
+        audit.record(
+            db, budget.company_id, "budget", budget.id, "approve", current_user, f"Approved budget '{budget.name}' as {role} ({payload.actor_name})"
+        )
+        db.commit()
+        db.refresh(result)
+        return result
     except budget_workflow.WorkflowError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.post("/budgets/{budget_id}/reject", response_model=BudgetOut)
-def reject_budget(budget_id: uuid.UUID, payload: ApprovalAction, db: Session = Depends(get_db)):
+def reject_budget(
+    budget_id: uuid.UUID, payload: ApprovalAction, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
     budget = _get_budget_or_404(db, budget_id)
+    role = budget_workflow.expected_role(budget)
     try:
-        return budget_workflow.reject_budget(db, budget, payload.actor_name, payload.comment)
+        result = budget_workflow.reject_budget(db, budget, payload.actor_name, payload.comment)
+        audit.record(
+            db, budget.company_id, "budget", budget.id, "reject", current_user, f"Rejected budget '{budget.name}' as {role} ({payload.actor_name})"
+        )
+        db.commit()
+        db.refresh(result)
+        return result
     except budget_workflow.WorkflowError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 

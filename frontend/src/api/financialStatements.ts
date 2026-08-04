@@ -23,3 +23,15 @@ export const downloadIncomeStatement = (companyId: string, startPeriod: string, 
 
 export const downloadBalanceSheet = (companyId: string, asOf: string) =>
   apiDownload(`/reports/balance-sheet/export?company_id=${companyId}&as_of=${asOf}`, "balance-sheet.xlsx");
+
+export const downloadBoardReportPdf = (companyId: string, startPeriod: string, endPeriod: string, asOf: string) =>
+  apiDownload(
+    `/reports/board-report/pdf?company_id=${companyId}&start_period=${startPeriod}&end_period=${endPeriod}&as_of=${asOf}`,
+    "financial-report.pdf",
+  );
+
+export const downloadBoardReportPptx = (companyId: string, startPeriod: string, endPeriod: string, asOf: string) =>
+  apiDownload(
+    `/reports/board-report/pptx?company_id=${companyId}&start_period=${startPeriod}&end_period=${endPeriod}&as_of=${asOf}`,
+    "financial-report.pptx",
+  );
