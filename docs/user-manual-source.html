@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Finance Engine — User Manual</title>
+<style>
+  @page { size: Letter; margin: 22mm 18mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    color: #1e2723;
+    line-height: 1.55;
+    font-size: 11.5pt;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    color: #21463c;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  h1 { font-size: 22pt; border-bottom: 3px solid #2f5d50; padding-bottom: 8px; margin-top: 0; }
+  h2 { font-size: 15pt; margin-top: 28px; border-bottom: 1px solid #c8d3ce; padding-bottom: 4px; }
+  h3 { font-size: 12.5pt; margin-top: 20px; color: #3a5b50; }
+  .chapter { page-break-before: always; break-before: page; display: block; }
+  table, .formula, .example, .steps, .note { page-break-inside: avoid; break-inside: avoid; }
+  .cover { page-break-before: auto; break-before: auto; text-align: center; padding-top: 22vh; }
+  .cover h1 { border: none; font-size: 34pt; }
+  .cover .sub { font-family: 'Helvetica Neue', Arial, sans-serif; color: #5a6b64; font-size: 13pt; margin-top: 10px; }
+  .cover .tag { margin-top: 60px; font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 10.5pt; color: #8a958f; }
+  p { margin: 8px 0; }
+  ol, ul { margin: 6px 0 10px 0; padding-left: 22px; }
+  li { margin-bottom: 4px; }
+  code, .mono { font-family: 'Courier New', monospace; font-size: 10.2pt; background: #eef1ef; padding: 1px 5px; border-radius: 3px; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0 16px 0; font-size: 10.3pt; }
+  th, td { border: 1px solid #cfd8d3; padding: 5px 8px; text-align: left; }
+  th { background: #21463c; color: #fff; font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 600; }
+  tr:nth-child(even) td { background: #f4f6f5; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .formula {
+    background: #f0f5f2;
+    border-left: 4px solid #2f5d50;
+    padding: 10px 14px;
+    margin: 12px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 10.8pt;
+  }
+  .formula .label { font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 700; color: #21463c; font-size: 9.5pt; text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 5px; }
+  .steps { background: #fbfbfa; border: 1px solid #e2e6e3; border-radius: 6px; padding: 12px 16px; margin: 12px 0; }
+  .steps .label { font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 700; font-size: 9.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #556; margin-bottom: 6px; display:block; }
+  .note {
+    background: #fff8e8; border-left: 4px solid #c99a2e; padding: 8px 14px; margin: 12px 0; font-size: 10.5pt;
+  }
+  .example {
+    background: #eef3fb; border-left: 4px solid #2c5a8c; padding: 10px 14px; margin: 12px 0; font-size: 10.6pt;
+  }
+  .example .label { font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 700; color: #2c5a8c; font-size: 9.5pt; text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 5px; }
+  .toc-list { list-style: none; padding-left: 0; }
+  .toc-list li { display: flex; justify-content: space-between; border-bottom: 1px dotted #c8d3ce; padding: 4px 0; font-family: 'Helvetica Neue', Arial, sans-serif; }
+  .toc-list .num { color: #2f5d50; font-weight: 700; margin-right: 8px; }
+  .nav-path { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 9.5pt; color: #7a857f; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+  .footer-note { font-size: 9pt; color: #8a958f; font-family: 'Helvetica Neue', Arial, sans-serif; margin-top: 30px; border-top: 1px solid #e2e6e3; padding-top: 8px; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>Finance Engine</h1>
+  <div class="sub">User Manual — Every Module, Step by Step,<br>with a Worked Example You Can Follow</div>
+  <div class="tag">Prepared for GreenLeaf Foods Pvt Ltd (example company used throughout)<br>Finance Engine v1 &middot; 2026</div>
+</div>
+
+<div class="chapter">
+<h1>Contents</h1>
+<ul class="toc-list">
+  <li><span><span class="num">1.</span>Introduction — What This Software Does</span></li>
+  <li><span><span class="num">2.</span>Getting Started: Account, Login, Company Setup</span></li>
+  <li><span><span class="num">3.</span>The Example Company Used in This Manual</span></li>
+  <li><span><span class="num">4.</span>Dashboard</span></li>
+  <li><span><span class="num">5.</span>Sales Forecasting</span></li>
+  <li><span><span class="num">6.</span>Budget Planning</span></li>
+  <li><span><span class="num">7.</span>Cash Flow Forecast</span></li>
+  <li><span><span class="num">8.</span>Cost Controlling &amp; Cost Centers</span></li>
+  <li><span><span class="num">9.</span>Profitability &amp; Marginal Costing (CVP)</span></li>
+  <li><span><span class="num">10.</span>Standard Costing (Variance Analysis)</span></li>
+  <li><span><span class="num">11.</span>Financial Statements</span></li>
+  <li><span><span class="num">12.</span>Financial Statement Forecasting</span></li>
+  <li><span><span class="num">13.</span>Scenario Planning</span></li>
+  <li><span><span class="num">14.</span>FX Scenario</span></li>
+  <li><span><span class="num">15.</span>Monte Carlo Simulation</span></li>
+  <li><span><span class="num">16.</span>AI Insights (Recommendation Engine)</span></li>
+  <li><span><span class="num">17.</span>Reports &amp; Exports</span></li>
+  <li><span><span class="num">18.</span>Audit Trail</span></li>
+  <li><span><span class="num">19.</span>Quick Reference: Every Formula in One Place</span></li>
+</ul>
+</div>
+
+<div class="chapter">
+<h1>1. Introduction — What This Software Does</h1>
+
+<p>Finance Engine is a multi-company financial forecasting and controlling platform. It covers the work of three roles that
+usually sit in separate spreadsheets: a <strong>financial planner</strong> forecasting sales and cash, a <strong>controller</strong>
+comparing actual spend against budget, and a <strong>management accountant</strong> analyzing product and customer
+profitability. All three see the same underlying numbers, so a budget approved in one module is the same number a
+forecast pulls from in another — there is no re-typing figures between tools.</p>
+
+<h2>Who this manual is for</h2>
+<p>You do not need to be an accountant to follow this manual, but it helps to know the basic vocabulary: revenue,
+expense, budget, variance, contribution margin. Wherever a term first appears, it is explained in plain language before
+any calculation is shown. If you already know SAP FICO or a similar ERP's Controlling (CO) and Financial Accounting (FI)
+modules, the concepts will be familiar — Cost Centers, Standard Costing variances, and budget approval chains all follow
+the same logic you already know, just in a lighter, web-based tool.</p>
+
+<h2>How this manual is organized</h2>
+<p>Every module gets its own chapter with three parts:</p>
+<ol>
+  <li><strong>What it's for</strong> — the real business question the module answers.</li>
+  <li><strong>How to use it</strong> — the exact buttons and fields, in order.</li>
+  <li><strong>How the numbers are actually calculated</strong> — the formula, worked by hand with the example company's
+  real figures, so you can check the software's answer yourself and understand <em>why</em> it produced that number, not
+  just trust it blindly.</li>
+</ol>
+<p>The same fictional company — <strong>GreenLeaf Foods Pvt Ltd</strong> — is used from Chapter 3 onward, so numbers
+introduced in one chapter (a sales forecast, a posted actual) are the same numbers referenced in later chapters (cash
+flow, profitability, financial statements). This is deliberate: in real use, that is exactly how the modules connect to
+each other.</p>
+
+<h2>What Finance Engine deliberately does not do</h2>
+<p>Being honest about limits up front avoids confusion later:</p>
+<ul>
+  <li>There is no double-entry bookkeeping enforcement. Actuals are posted directly against a GL account; the Balance
+  Sheet reports whether assets equal liabilities plus equity rather than assuming it, because nothing forces that to be
+  true.</li>
+  <li>There is no live connection to SAP, an ERP, or a bank feed yet. Historical data comes in via manual entry or a
+  bulk Excel/CSV upload.</li>
+  <li>Currency conversion is real (see Chapter 14, FX Scenario) but only applied where explicitly stated. Everywhere
+  else, amounts are treated as already being in the company's base currency.</li>
+  <li>Bad-debt prediction was deliberately not built, because it needs accounts-receivable ageing (which invoice is how
+  many days overdue) that this system does not track. A feature that faked this from data that cannot support it would
+  give you a confident-looking, meaningless number — worse than no feature at all.</li>
+</ul>
+</div>
+
+<div class="chapter">
+<h1>2. Getting Started: Account, Login, Company Setup</h1>
+
+<h2>2.1 Creating your account</h2>
+<div class="steps">
+<span class="label">Steps</span>
+<ol>
+  <li>Open the app. You will land on a Log In / Create Account screen.</li>
+  <li>Click <strong>Create Account</strong>.</li>
+  <li>Enter your name, email, and a password.</li>
+  <li>Click <strong>Create Account</strong>. You are logged in immediately — there is no email verification step.</li>
+</ol>
+</div>
+<p>Your login protects access to the application, but it does not yet separate companies by user — anyone with a valid
+login can see any company in the system. If you are the only person using this deployment, that is not a problem. If
+you plan to share this with colleagues, keep that in mind until stricter access control is added.</p>
+
+<h2>2.2 Creating your first company</h2>
+<p>Everything in Finance Engine — every budget, actual, forecast — belongs to a <strong>company</strong>. You can run
+more than one company (e.g. two subsidiaries) from the same login; a switcher in the top-right corner lets you move
+between them.</p>
+<div class="steps">
+<span class="label">Steps</span>
+<ol>
+  <li>On first login, you will be prompted to create a company.</li>
+  <li>Enter a <strong>Name</strong> (e.g. "GreenLeaf Foods Pvt Ltd").</li>
+  <li>Enter a <strong>Base Currency</strong> — a three-letter code (USD, EUR, INR, etc.). Every amount you see by
+  default is assumed to already be in this currency.</li>
+  <li>Click <strong>Create</strong>.</li>
+</ol>
+</div>
+
+<h2>2.3 Finding your way around</h2>
+<p>The left-hand navigation lists every module. They are grouped loosely in the order a finance team would actually use
+them: forecast revenue and cash first, then control spend against a budget, then analyze what happened, then report it
+upward. You do not have to use them in that order — the Dashboard on the home page gives you a shortcut view of the
+most important numbers from several modules at once.</p>
+</div>
+
+<div class="chapter">
+<h1>3. The Example Company Used in This Manual</h1>
+
+<p><strong>GreenLeaf Foods Pvt Ltd</strong> is a fictional packaged-snacks company, base currency USD, used consistently
+in every chapter below so the numbers connect. If you are following along in your own account, you do not need to
+recreate this exact company — the point is to understand how the numbers move from one module to the next, using
+figures small enough to check by hand.</p>
+
+<h3>Products</h3>
+<table>
+<tr><th>SKU</th><th>Product</th><th class="num">Unit Price</th><th class="num">Unit Variable Cost</th></tr>
+<tr><td class="mono">CHIP-500</td><td>Potato Chips, 500g</td><td class="num">$4.00</td><td class="num">$2.50</td></tr>
+<tr><td class="mono">COOK-250</td><td>Cookies, 250g</td><td class="num">$3.00</td><td class="num">$1.80</td></tr>
+</table>
+
+<h3>Six months of sales history (uploaded via CSV)</h3>
+<table>
+<tr><th>Period</th><th class="num">Chips Units</th><th class="num">Chips Revenue</th><th class="num">Cookies Units</th><th class="num">Cookies Revenue</th></tr>
+<tr><td>2026-01</td><td class="num">2,000</td><td class="num">$8,000</td><td class="num">1,200</td><td class="num">$3,600</td></tr>
+<tr><td>2026-02</td><td class="num">2,100</td><td class="num">$8,400</td><td class="num">1,150</td><td class="num">$3,450</td></tr>
+<tr><td>2026-03</td><td class="num">2,300</td><td class="num">$9,200</td><td class="num">1,300</td><td class="num">$3,900</td></tr>
+<tr><td>2026-04</td><td class="num">2,200</td><td class="num">$8,800</td><td class="num">1,250</td><td class="num">$3,750</td></tr>
+<tr><td>2026-05</td><td class="num">2,400</td><td class="num">$9,600</td><td class="num">1,400</td><td class="num">$4,200</td></tr>
+<tr><td>2026-06</td><td class="num">2,600</td><td class="num">$10,400</td><td class="num">1,450</td><td class="num">$4,350</td></tr>
+</table>
+
+<h3>Chart of GL accounts</h3>
+<table>
+<tr><th>Code</th><th>Name</th><th>Category</th><th>Forecast Role</th></tr>
+<tr><td class="mono">4000</td><td>Sales Revenue</td><td>revenue</td><td>—</td></tr>
+<tr><td class="mono">6000</td><td>Cost of Goods Sold</td><td>expense</td><td>—</td></tr>
+<tr><td class="mono">6100</td><td>Marketing Expense</td><td>expense</td><td>—</td></tr>
+<tr><td class="mono">6200</td><td>Salaries</td><td>expense</td><td>—</td></tr>
+<tr><td class="mono">1000</td><td>Cash</td><td>asset</td><td>cash</td></tr>
+<tr><td class="mono">1100</td><td>Accounts Receivable</td><td>asset</td><td>accounts_receivable</td></tr>
+<tr><td class="mono">2000</td><td>Accounts Payable</td><td>liability</td><td>accounts_payable</td></tr>
+<tr><td class="mono">3000</td><td>Owner's Equity</td><td>equity</td><td>—</td></tr>
+</table>
+
+<h3>Approved June budget (Expense type)</h3>
+<table>
+<tr><th>GL Account</th><th class="num">Budgeted</th><th class="num">Actual (posted)</th></tr>
+<tr><td>6100 Marketing Expense</td><td class="num">$2,000</td><td class="num">$2,300</td></tr>
+<tr><td>6200 Salaries</td><td class="num">$5,000</td><td class="num">$5,000</td></tr>
+</table>
+<p>These figures are referenced again in Chapters 5 through 12 — the marketing overspend in particular is used to show
+exactly how the variance traffic-light system decides "red" versus "yellow" versus "green."</p>
+</div>
+
+<div class="chapter">
+<h1>4. Dashboard</h1>
+<div class="nav-path">Navigation: Dashboard (home page)</div>
+
+<h2>What it's for</h2>
+<p>A single screen answering "how is the company doing right now" without opening four different modules. Four KPI
+tiles, two trend charts, and a live list of anything that looks wrong.</p>
+
+<h2>How to use it</h2>
+<div class="steps">
+<span class="label">Steps</span>
+<ol>
+  <li>Set the <strong>Fiscal year</strong> field — this scopes Budget Utilization to that year.</li>
+  <li>Set a <strong>Cash runway anchor month</strong> and <strong>Opening balance</strong> if you want the Cash Runway
+  tile populated (it is blank otherwise).</li>
+  <li>Read the four tiles, the two charts below them, and the AI Insights list at the bottom.</li>
+</ol>
+</div>
+
+<h2>How each KPI is calculated</h2>
+
+<div class="formula"><span class="label">Gross Margin %</span>
+gross_margin_pct = (sum of contribution margin across products) / (sum of revenue across products) &times; 100</div>
+<div class="example"><span class="label">Worked with GreenLeaf's June numbers</span>
+Chips contribution margin = ($4.00 &minus; $2.50) &times; 2,600 units = $3,900<br>
+Cookies contribution margin = ($3.00 &minus; $1.80) &times; 1,450 units = $1,740<br>
+Total contribution = $5,640. Total revenue = $10,400 + $4,350 = $14,750.<br>
+Gross Margin % = $5,640 / $14,750 &times; 100 = <strong>38.2%</strong></div>
+<p>If a product has no <span class="mono">unit_variable_cost</span> set, it is excluded from this calculation rather than
+assumed to have zero cost — an unset cost is not the same fact as a zero cost, and treating it as zero would overstate
+margin.</p>
+
+<div class="formula"><span class="label">Budget Utilization %</span>
+budget_utilization_pct = (total spent across approved budgets) / (total approved budget amount) &times; 100</div>
+<div class="example"><span class="label">Worked example</span>
+Approved budget total = $2,000 + $5,000 = $7,000. Actual spent = $2,300 + $5,000 = $7,300.<br>
+Budget Utilization % = $7,300 / $7,000 &times; 100 = <strong>104.3%</strong> (over budget)</div>
+
+<div class="formula"><span class="label">Forecast Accuracy (MAPE)</span>
+For each historical month (starting after a short warm-up window), forecast one month ahead using only the data
+available up to that point, then compare to what actually happened:<br>
+error_t = |actual_t &minus; forecast_t| / |actual_t|<br>
+MAPE = average(error_t) &times; 100</div>
+<p>This is called a <strong>walk-forward backtest</strong>. It never lets the model "see the future" — the forecast for
+March only ever uses January and February's data, exactly like a real forecast would have to. Lower MAPE means the
+model's typical error was smaller, so it is a better fit for that specific product's pattern.</p>
+
+<div class="formula"><span class="label">Cash Runway (months)</span>
+Starting from the opening balance, add each forecast month's net cash flow (cash in minus cash out) one month at a
+time. Cash Runway is the number of months until the running balance first goes negative. If it never goes negative
+within the forecast window, the tile shows "12+ mo" rather than a false precise number.</div>
+
+<h2>The two charts</h2>
+<p><strong>Revenue / Expense / Net Profit Trend</strong> plots actual monthly revenue and expense (bars) and net profit
+(line) for every month you have posted actuals for — however many years that is. <strong>Budget vs. Actual</strong>
+aggregates every GL account's budget and actual for each period into one bar pair, so you can see at a glance whether
+the company as a whole is over or under budget month to month, before drilling into which account caused it on the
+Cost Controlling page.</p>
+
+<h2>AI Insights</h2>
+<p>A plain-language list of things worth your attention: budget overruns, unbudgeted spend (an actual posted to an
+account with no approved budget line at all), and — since Phase 3 — statistical spend/sales anomalies. An anomaly is
+flagged when the latest month's value is more than 2 standard deviations away from that specific account's own
+historical average (a <strong>z-score</strong>):
+<span class="mono">z = (latest &minus; mean of prior months) / population standard deviation of prior months</span>.
+|z| &ge; 2 is flagged yellow, |z| &ge; 3 is flagged red. This is deliberately a statistical rule, not a trained machine
+learning model — it needs no training data of its own, just at least 4 prior months for that account to compare
+against.</p>
+</div>
+
+<div class="chapter">
+<h1>5. Sales Forecasting</h1>
+<div class="nav-path">Navigation: Sales Forecast</div>
+
+<h2>What it's for</h2>
+<p>Projects future revenue for one product at a time, from that product's own sales history. Every other module that
+needs a revenue number (Cash Flow, Financial Statement Forecast) uses this forecast underneath, summed across all
+products.</p>
+
+<h2>How to use it</h2>
+<div class="steps">
+<span class="label">Steps</span>
+<ol>
+  <li>Click <strong>Upload Sales CSV or Excel</strong>. Columns required: <span class="mono">sku, period, quantity,
+  amount, currency</span> (optional: <span class="mono">product_name, customer_name</span>). Periods can be
+  <span class="mono">YYYY-MM</span> or a full date.</li>
+  <li>Pick a <strong>Product</strong> from the dropdown (created automatically from the upload).</li>
+  <li>Pick a <strong>Model</strong> — three statistical models and two machine-learning models, explained below.</li>
+  <li>Set <strong>Periods</strong> (how many months ahead to forecast).</li>
+  <li>Optionally set the product's <strong>Unit variable cost</strong> — this feeds Profitability and Marginal Costing
+  later.</li>
+</ol>
+</div>
+
+<h2>How the statistical models are calculated</h2>
+
+<div class="formula"><span class="label">Moving Average</span>
+forecast = average of the last N months (N = window size, default 3), repeated flat for every future month.</div>
+
+<div class="formula"><span class="label">Weighted Average</span>
+forecast = weighted average of the last N months, with weights 1, 2, 3 &hellip; N (most recent month weighted
+heaviest).</div>
+
+<div class="formula"><span class="label">Exponential Smoothing (default, &alpha; = 0.3)</span>
+level_1 = first historical value<br>
+level_t = &alpha; &times; actual_t + (1 &minus; &alpha;) &times; level_(t&minus;1), for each subsequent month<br>
+forecast = the final level, repeated flat for every future month.</div>
+
+<div class="example"><span class="label">Worked example: Chips, exponential smoothing, &alpha; = 0.3</span>
+Starting level = $8,000 (January)<br>
+After February ($8,400): level = 0.3&times;8,400 + 0.7&times;8,000 = $8,120<br>
+After March ($9,200): level = 0.3&times;9,200 + 0.7&times;8,120 = $8,344<br>
+After April ($8,800): level = 0.3&times;8,800 + 0.7&times;8,344 = $8,480.80<br>
+After May ($9,600): level = 0.3&times;9,600 + 0.7&times;8,480.80 = $8,816.56<br>
+After June ($10,400): level = 0.3&times;10,400 + 0.7&times;8,816.56 = $9,291.59<br>
+<strong>July forecast &asymp; $9,292</strong>, repeated for every month you ask it to forecast, since exponential
+smoothing has no concept of a trend beyond the current level.</div>
+
+<div class="formula"><span class="label">Confidence interval (all three statistical models)</span>
+residual_std = standard deviation of month-over-month changes in the actual history<br>
+margin = 1.96 &times; residual_std (a 95% interval)<br>
+lower_bound = max(forecast &minus; margin, 0), upper_bound = forecast + margin</div>
+<p>The bound is never allowed to go negative — a forecast revenue below zero is not a meaningful concept.</p>
+
+<h2>The two machine-learning models</h2>
+<p><strong>Random Forest</strong> and <strong>Gradient Boosting</strong> are trained on features built from each
+month's own history: the three preceding months' values (as lags), their rolling average, a plain time index (to
+capture a trend), and the month itself encoded so December and January read as adjacent rather than eleven months
+apart. They need at least 6 months of history before they will produce a result — below that, the software refuses
+to guess rather than return a number trained on almost nothing.</p>
+<div class="note">A known, accepted limitation: tree-based models like these can't extrapolate a trend past what they
+saw in training the way a straight-line projection can. A steadily climbing sales history will get a forecast that
+plateaus rather than keeps climbing. This is normal for this model family, not a bug — it is exactly why the
+<strong>Compare models</strong> button exists: run every model's walk-forward MAPE side by side and pick whichever one
+actually fits your product's pattern best, rather than assuming one model is always right.</div>
+
+<h2>Demand Prediction</h2>
+<p>The <strong>Forecast demand</strong> button runs the exact same models against <em>units sold</em> instead of
+revenue. This matters because price and volume can move independently — a promotion might sell more units at a lower
+price, which a revenue forecast alone would not distinguish from simply selling fewer units at full price. Demand
+prediction answers "how many units should we plan to produce," which is a genuinely different question from "how much
+revenue will we book."</p>
+</div>
+
+<div class="chapter">
+<h1>6. Budget Planning</h1>
+<div class="nav-path">Navigation: Budget Planning</div>
+
+<h2>What it's for</h2>
+<p>Every company plans spend differently. This module supports four distinct budgeting methods under one roof, plus a
+formal Manager &rarr; Finance &rarr; CFO approval chain so a budget cannot be spent against until someone with
+authority has actually signed off.</p>
+
+<h2>6.1 GL Accounts and Cost Centers</h2>
+<p>Before creating a budget, you need at least one GL account (see Chapter 3's chart of accounts) and, optionally, a
+Cost Center — a responsibility unit like "Marketing" or "Plant 2" that a line item can be tagged to independently of
+which GL account it hits. Cost Center tagging is covered fully in Chapter 8.</p>
+
+<h2>6.2 The four budget types</h2>
+<table>
+<tr><th>Type</th><th>What makes it different</th></tr>
+<tr><td><strong>Zero-Based</strong></td><td>Every line must carry a written justification before the budget can be
+submitted for approval — spend has to be argued for from zero each cycle, not carried forward by habit.</td></tr>
+<tr><td><strong>Flexible</strong></td><td>Each line has a fixed portion and a per-unit variable rate. The "budget" it
+is compared against moves with actual activity — see the worked variance example below.</td></tr>
+<tr><td><strong>Rolling</strong></td><td>A fixed-size forward window (e.g. 12 months) that rolls forward one month at
+a time: each roll-forward copies the newest month's line forward and drops the oldest.</td></tr>
+<tr><td><strong>Capital</strong></td><td>For investments, not period spend — each line captures an investment amount,
+an annual cash flow, and a useful life, so payback period and ROI can be computed (see below).</td></tr>
+</table>
+
+<h2>6.3 The approval chain</h2>
+<div class="steps">
+<span class="label">Steps</span>
+<ol>
+  <li>Create the budget (starts in <strong>draft</strong>).</li>
+  <li>Add line items — while in <strong>draft</strong> or <strong>rejected</strong> status only.</li>
+  <li>Click <strong>Submit for approval</strong> — moves to <strong>pending_manager</strong>. For zero-based budgets,
+  this step is blocked with an error if any line is missing its justification.</li>
+  <li>Each of Manager, Finance, and CFO clicks <strong>Approve</strong> in turn, or <strong>Reject</strong> to send it
+  back to draft for editing and resubmission.</li>
+  <li>After the CFO approves, the budget is <strong>approved</strong> and locked — it now counts toward Budget
+  Utilization and Cost Controlling variance.</li>
+</ol>
+</div>
+<p>Every submission is snapshotted into a version history, so if a budget is rejected, edited, and resubmitted, the
+earlier line values are still visible rather than silently overwritten.</p>
+
+<h2>6.4 Flexible budget variance — worked example</h2>
+<p>Suppose GreenLeaf's Marketing line in a flexible budget has a fixed portion of $1,500 plus a variable rate of $0.20
+per unit sold, and June actually sold 4,050 units (chips + cookies combined) at an actual marketing spend of $2,300.</p>
+<div class="formula"><span class="label">Flexible budget formulas</span>
+flexed_amount = fixed_amount + (variable_rate_per_unit &times; actual_quantity)<br>
+spending_variance = actual_amount &minus; flexed_amount &nbsp;(efficiency: did we spend more than the flexed
+allowance?)<br>
+volume_variance = flexed_amount &minus; static_amount &nbsp;(activity effect: did more/less volume happen than
+planned?)</div>
+<div class="example"><span class="label">Worked example</span>
+flexed_amount = $1,500 + ($0.20 &times; 4,050) = $1,500 + $810 = $2,310<br>
+spending_variance = $2,300 &minus; $2,310 = &minus;$10 &nbsp;(favorable — spent $10 less than the flexed allowance)<br>
+volume_variance = $2,310 &minus; $1,500 = +$810 &nbsp;(the flexed budget grew because volume was higher than the
+static plan assumed)</div>
+<p>This separates two different questions a single number can't answer on its own: was the overspend because managers
+spent inefficiently (spending variance), or because the business simply did more volume than planned (volume
+variance)? In this example, the answer is neither — spending was actually slightly efficient once volume is accounted
+for.</p>
+
+<h2>6.5 Capital budget appraisal — worked example</h2>
+<p>Suppose GreenLeaf considers a $50,000 investment in a new packaging line, expected to generate $15,000 in annual
+cash flow over a 5-year useful life.</p>
+<div class="formula"><span class="label">Capital appraisal formulas (simple, no discounting)</span>
+payback_period_years = investment / annual_cash_flow<br>
+total_cash_flow = annual_cash_flow &times; useful_life_years<br>
+net_gain = total_cash_flow &minus; investment<br>
+roi_pct = (net_gain / investment) &times; 100<br>
+average_annual_roi_pct = roi_pct / useful_life_years</div>
+<div class="example"><span class="label">Worked example</span>
+payback_period = $50,000 / $15,000 = <strong>3.33 years</strong><br>
+total_cash_flow = $15,000 &times; 5 = $75,000<br>
+net_gain = $75,000 &minus; $50,000 = $25,000<br>
+roi_pct = $25,000 / $50,000 &times; 100 = <strong>50%</strong> over the life of the investment<br>
+average_annual_roi_pct = 50% / 5 = <strong>10% per year</strong></div>
+<div class="note">This is deliberately simple appraisal math — no Net Present Value, no discounting for the time value
+of money. It answers "does this pay for itself, and roughly how well," not "what is this worth today accounting for
+interest rates." Treat it as a first screen, not a substitute for a proper NPV/IRR analysis on a large investment
+decision.</div>
+</div>
+
+<div class="chapter">
+<h1>7. Cash Flow Forecast</h1>
+<div class="nav-path">Navigation: Cash Flow</div>
+
+<h2>What it's for</h2>
+<p>Projects the company's cash balance forward, month by month, combining three sources: forecasted sales (shifted by
+a collection lag), approved expense budgets, and any manual one-off cash movements you enter directly (payroll runs,
+loan draws, tax payments).</p>
+
+<h2>How to use it</h2>
+<div class="steps">
+<span class="label">Steps</span>
+<ol>
+  <li>Set <strong>Start month</strong>, <strong>Periods</strong>, <strong>Collection lag (days)</strong>, and
+  <strong>Opening balance</strong>, then click <strong>Refresh</strong>.</li>
+  <li>To record a one-off item, fill in <strong>Category</strong>, <strong>Direction</strong> (in/out),
+  <strong>Period</strong>, <strong>Amount</strong>, and an optional description, then click <strong>Add</strong>.</li>
+  <li>Every item you have added is listed in a table underneath, with an <strong>Edit</strong> and
+  <strong>Delete</strong> action on each row — click Edit to load a row back into the form above, change any field,
+  and click Save changes; click Delete to remove it entirely. Both actions immediately recompute the forecast below.</li>
+</ol>
+</div>
+
+<h2>How the forecast is calculated</h2>
+<div class="formula"><span class="label">Per period</span>
+cash_in_total = cash_in_forecast (from Sales Forecasting, summed across products, shifted forward by the collection
+lag) + cash_in_manual (your manual "in" items for that month)<br>
+cash_out_total = cash_out_budget (approved expense budget lines for that month) + cash_out_manual<br>
+net_cash_flow = cash_in_total &minus; cash_out_total<br>
+closing_balance = opening_balance + net_cash_flow &nbsp;(and next month's opening balance = this month's closing)</div>
+<div class="example"><span class="label">Worked example, GreenLeaf, July, 30-day collection lag, $0 opening balance</span>
+Cash in (forecasted July sales, both products, shifted by 30 days from June's actual sale) &asymp; $9,292 (chips,
+from Chapter 5) + a similarly forecasted cookies figure.<br>
+Cash out (July's approved budget) = $2,000 (marketing) + $5,000 (salaries) = $7,000, plus any manual items you add.<br>
+net_cash_flow = cash_in_total &minus; $7,000.<br>
+closing_balance = $0 + net_cash_flow, and this closing balance becomes August's opening balance.</div>
+<div class="note">Draft or pending-approval budgets are excluded from cash_out_budget on purpose — an unapproved budget
+is not a real commitment yet, so it should not shrink your projected cash cushion.</div>
+</div>
+
+<div class="chapter">
+<h1>8. Cost Controlling &amp; Cost Centers</h1>
+<div class="nav-path">Navigation: Cost Controlling</div>
+
+<h2>What it's for</h2>
+<p>Where actuals get posted against a GL account and compared to what was budgeted, with a traffic-light status so you
+can scan a long list and immediately see what needs attention.</p>
+
+<h2>How to use it</h2>
+<div class="steps">
+<span class="label">Steps</span>
+<ol>
+  <li>Under <strong>Post an actual</strong>: pick a GL Account, a Period, an Amount, optionally a Quantity (only used
+  by flexible budgets) and a Cost Center, then click <strong>Post</strong>.</li>
+  <li>Under <strong>Cost Centers</strong>: enter a Code and Name and click <strong>Add cost center</strong> to create
+  one you can tag actuals and budget lines against.</li>
+  <li>The <strong>Budget vs. Actual</strong> table shows every GL account/period combination that has a budget, an
+  actual, or both.</li>
+  <li>The <strong>Cost Center Variance</strong> table shows the same comparison grouped by cost center instead —
+  useful for "how is the Marketing team doing against its budget" rather than "how is this one GL line doing."</li>
+</ol>
+</div>
+
+<h2>How the traffic-light status is decided</h2>
+<div class="formula"><span class="label">Variance %</span>
+variance_amount = actual_amount &minus; budget_amount<br>
+variance_pct = (variance_amount / budget_amount) &times; 100</div>
+<div class="formula"><span class="label">Direction-aware unfavorable %</span>
+For an <strong>expense</strong> account: unfavorable_pct = variance_pct (spending more than budgeted is bad)<br>
+For a <strong>revenue</strong> account: unfavorable_pct = &minus;variance_pct (earning less than budgeted is bad;
+earning more is always favorable regardless of size)<br>
+status = red if unfavorable_pct &ge; 15%, yellow if &ge; 5%, otherwise green</div>
+<div class="example"><span class="label">Worked example: GreenLeaf's June Marketing overspend</span>
+variance_amount = $2,300 &minus; $2,000 = $300<br>
+variance_pct = $300 / $2,000 &times; 100 = 15%<br>
+Marketing is an expense account, so unfavorable_pct = 15%.<br>
+15% &ge; 15%, so status = <strong>red</strong>.</div>
+<p>Note that Salaries, posted exactly on budget ($5,000 vs $5,000), gets variance_pct = 0% and status = green. A
+favorable variance of any size is always green — the thresholds only bite in the unfavorable direction, since
+underspending or overachieving is never something you need a warning about.</p>
+
+<h2>Budget Consumption</h2>
+<div class="formula"><span class="label">Consumption %</span>
+consumption_pct = (spent / budget_amount) &times; 100<br>
+status = red if &ge; 100%, yellow if &ge; 80%, otherwise green</div>
+<p>Unlike Budget vs. Actual, this tracks any budget regardless of approval status — a department manager watching
+their spend against a working budget during the approval cycle does not want to wait for CFO sign-off to see how
+close they are to the limit.</p>
+
+<h2>Cost Center Accounting</h2>
+<p>A cost center is independent of GL account category — the same "Marketing" cost center could carry both a
+marketing-expense line and, in principle, a revenue line, though in practice cost centers are almost always used for
+expense tracking. Tagging is optional everywhere (posting an actual, adding a budget line, or a bulk statement
+upload with a <span class="mono">cost_center_code</span> column) — only lines actually tagged appear in the Cost
+Center Variance report; untagged spend is not silently bucketed into a fabricated "Unassigned" total, since that
+would misrepresent data that was never actually attributed anywhere.</p>
+</div>
+
+<div class="chapter">
+<h1>9. Profitability &amp; Marginal Costing (CVP)</h1>
+<div class="nav-path">Navigation: Profitability</div>
+
+<h2>What it's for</h2>
+<p>Answers "which products and customers are actually profitable," and, at the company level, the classic
+cost-volume-profit (CVP) questions: what is our break-even revenue, how much cushion do we have above it, and how
+much does a change in revenue move our profit.</p>
+
+<h2>Contribution margin per product</h2>
+<div class="formula"><span class="label">Formulas</span>
+contribution_per_unit = unit_price &minus; unit_variable_cost<br>
+contribution_margin_total = contribution_per_unit &times; quantity_sold<br>
+contribution_margin_pct = contribution_per_unit / unit_price &times; 100</div>
+<div class="example"><span class="label">Worked example: Chips, June</span>
+contribution_per_unit = $4.00 &minus; $2.50 = $1.50<br>
+contribution_margin_total = $1.50 &times; 2,600 = $3,900<br>
+contribution_margin_pct = $1.50 / $4.00 &times; 100 = <strong>37.5%</strong></div>
+<p>If a product's <span class="mono">unit_variable_cost</span> has never been set, its contribution fields are shown as
+null, not zero — an unset cost is a data gap, and treating it as zero would make an uncosted product look artificially
+more profitable than it might be. The Marginal Costing summary lists any such product's SKU under
+<span class="mono">uncosted_product_skus</span> so it is not silently dropped either.</p>
+
+<h2>Marginal Costing / CVP analysis</h2>
+<div class="formula"><span class="label">Formulas</span>
+contribution_margin_ratio = total contribution margin / total revenue (company-wide, weighted across all costed
+products)<br>
+break_even_revenue = total fixed costs / contribution_margin_ratio<br>
+margin_of_safety = actual_revenue &minus; break_even_revenue<br>
+margin_of_safety_pct = margin_of_safety / actual_revenue &times; 100<br>
+degree_of_operating_leverage = total_contribution_margin / net_operating_income</div>
+<div class="example"><span class="label">Worked example, GreenLeaf, June, assuming $4,000 total fixed costs
+(rent + fixed salaries)</span>
+Total revenue = $10,400 + $4,350 = $14,750. Total contribution = $3,900 (chips) + $1,740 (cookies) = $5,640.<br>
+contribution_margin_ratio = $5,640 / $14,750 = 0.3824 (38.24%)<br>
+break_even_revenue = $4,000 / 0.3824 = <strong>$10,460</strong><br>
+margin_of_safety = $14,750 &minus; $10,460 = $4,290<br>
+margin_of_safety_pct = $4,290 / $14,750 &times; 100 = <strong>29.1%</strong><br>
+net_operating_income = $5,640 &minus; $4,000 = $1,640<br>
+degree_of_operating_leverage = $5,640 / $1,640 = <strong>3.44</strong></div>
+<p>The operating leverage figure means: a 1% change in revenue would move net operating income by roughly 3.44% in the
+same direction, at this specific revenue level. That sensitivity is highest near the break-even point and falls as a
+company sells further above it — which is exactly what the margin of safety percentage is telling you at the same
+time.</p>
+
+<h2>Customer Churn Risk</h2>
+<div class="formula"><span class="label">Formula</span>
+risk_ratio = months_since_last_order / customer's own average_order_interval_months<br>
+risk_level: high if ratio &ge; 2.0, medium if &ge; 1.3, otherwise low</div>
+<p>This compares a customer to <em>their own</em> normal buying rhythm, not a fixed rule like "no order in 3 months."
+A customer who orders twice a year and a customer who orders twice a month need completely different definitions of
+"overdue" — this ratio gives each customer their own yardstick. It deliberately is not a trained classifier: this
+system has no record of subscription cancellations or "churn" events to train one on, and inventing a label to train
+against would not be real machine learning, just a confident-looking guess.</p>
+</div>
+
+<div class="chapter">
+<h1>10. Standard Costing (Variance Analysis)</h1>
+<div class="nav-path">Navigation: Standard Costing</div>
+
+<h2>What it's for</h2>
+<p>The classic manufacturing variance method: compare what a unit of production was supposed to cost (the standard)
+against what it actually cost, broken into eight distinct variances so you know exactly which input — material price,
+material usage, labor rate, labor efficiency, or overhead — drove any difference.</p>
+
+<h2>How to use it</h2>
+<div class="steps">
+<span class="label">Steps</span>
+<ol>
+  <li>Enter the <strong>standard cost sheet</strong> for a product once: material standard price and quantity, labor
+  standard rate and hours, variable and fixed overhead rates, and budgeted fixed overhead.</li>
+  <li>Post <strong>production actuals</strong> each period: units produced, and the actual material price/quantity,
+  labor rate/hours, and overhead incurred.</li>
+  <li>The variance table computes all eight variances automatically for every product with both a standard and an
+  actual on file.</li>
+</ol>
+</div>
+
+<h2>The eight variances, worked with an example</h2>
+<p>Suppose GreenLeaf's Chips standard cost sheet says: material standard price $0.80/kg, standard 0.3kg per unit;
+labor standard rate $15/hour, standard 0.05 hours per unit. In June, 2,600 units were produced using actual material
+at $0.85/kg and 0.31kg per unit, and actual labor at $14.50/hour for 0.052 hours per unit.</p>
+
+<div class="formula"><span class="label">Material variances</span>
+material_price_variance = (standard_price &minus; actual_price) &times; actual_quantity_used<br>
+material_quantity_variance = (standard_quantity_allowed &minus; actual_quantity_used) &times; standard_price<br>
+&nbsp;&nbsp;where standard_quantity_allowed = standard_qty_per_unit &times; units_produced</div>
+<div class="example"><span class="label">Worked</span>
+actual_quantity_used = 0.31 &times; 2,600 = 806 kg<br>
+material_price_variance = ($0.80 &minus; $0.85) &times; 806 = <strong>&minus;$40.30</strong> (unfavorable — paid more
+per kg than standard)<br>
+standard_quantity_allowed = 0.3 &times; 2,600 = 780 kg<br>
+material_quantity_variance = (780 &minus; 806) &times; $0.80 = <strong>&minus;$20.80</strong> (unfavorable — used more
+material than standard allows)</div>
+
+<div class="formula"><span class="label">Labor variances</span>
+labor_rate_variance = (standard_rate &minus; actual_rate) &times; actual_hours_worked<br>
+labor_efficiency_variance = (standard_hours_allowed &minus; actual_hours_worked) &times; standard_rate</div>
+<div class="example"><span class="label">Worked</span>
+actual_hours_worked = 0.052 &times; 2,600 = 135.2 hours<br>
+labor_rate_variance = ($15 &minus; $14.50) &times; 135.2 = <strong>+$67.60</strong> (favorable — paid less per hour
+than standard)<br>
+standard_hours_allowed = 0.05 &times; 2,600 = 130 hours<br>
+labor_efficiency_variance = (130 &minus; 135.2) &times; $15 = <strong>&minus;$78.00</strong> (unfavorable — took more
+labor hours than standard allows)</div>
+
+<div class="formula"><span class="label">Overhead variances (same logic, applied to variable and fixed overhead
+separately)</span>
+variable_overhead_spending_variance = (standard_variable_oh_rate &minus; actual_rate) &times; actual_hours<br>
+variable_overhead_efficiency_variance = (standard_hours_allowed &minus; actual_hours) &times; standard_variable_oh_rate<br>
+fixed_overhead_budget_variance = budgeted_fixed_overhead &minus; actual_fixed_overhead<br>
+fixed_overhead_volume_variance = (standard_hours_allowed &minus; budgeted_hours) &times; standard_fixed_oh_rate</div>
+
+<p>Every variance follows one sign convention: <strong>positive is favorable, negative is unfavorable</strong>. Adding
+all eight together for a product gives its total cost variance for the period — the single number a controller
+usually leads with, before drilling into which of the eight components actually caused it.</p>
+</div>
+
+<div class="chapter">
+<h1>11. Financial Statements</h1>
+<div class="nav-path">Navigation: Financial Statements</div>
+
+<h2>What it's for</h2>
+<p>Builds an Income Statement and Balance Sheet directly from the actuals you have posted — no separate data entry.
+It also supports bulk-uploading historical statements (however many years you have) and downloading every report as
+Excel, PDF, or PowerPoint.</p>
+
+<h2>Uploading historical statements</h2>
+<div class="steps">
+<span class="label">Steps</span>
+<ol>
+  <li>Click <strong>Upload historical statements</strong>.</li>
+  <li>Provide an Excel or CSV file with columns: <span class="mono">gl_account_code, category, period, amount</span>
+  (optional: <span class="mono">gl_account_name, currency, cost_center_code</span>).</li>
+  <li>GL accounts and cost centers referenced by code that do not already exist are created automatically. There is no
+  limit on how many years of history a single upload can cover — three years, four years, or more, all in one file.</li>
+</ol>
+</div>
+
+<h2>How the Income Statement is built</h2>
+<div class="formula"><span class="label">Formula</span>
+total_revenue = sum of every actual posted to a revenue-category GL account within the selected period range<br>
+total_expense = sum of every actual posted to an expense-category GL account within the same range<br>
+net_profit = total_revenue &minus; total_expense</div>
+<div class="example"><span class="label">Worked example, GreenLeaf, June only</span>
+Revenue (4000 Sales) = $10,400 + $4,350 = $14,750<br>
+Expense (6100 Marketing + 6200 Salaries, ignoring COGS for simplicity here) = $2,300 + $5,000 = $7,300<br>
+net_profit = $14,750 &minus; $7,300 = <strong>$7,450</strong></div>
+
+<h2>How the Balance Sheet is built</h2>
+<div class="formula"><span class="label">Formula</span>
+For each of Assets, Liabilities, and Equity: the balance of an account as of a given date is the running sum of every
+actual ever posted to it, up to and including that date — not just the current period.<br>
+is_balanced = |total_assets &minus; (total_liabilities + total_equity)| &le; $0.01</div>
+<p>Because there is no double-entry enforcement anywhere in this system, <span class="mono">is_balanced</span> and
+<span class="mono">difference</span> report the truth rather than assume it — if actuals were not posted consistently
+on both sides of a transaction, the report will show exactly how far off it is rather than silently forcing a balance.
+This is a deliberate design choice: a report that always claims to balance regardless of the underlying data would be
+actively misleading.</p>
+</div>
+
+<div class="chapter">
+<h1>12. Financial Statement Forecasting</h1>
+<div class="nav-path">Navigation: Financial Statements &rarr; Financial Statement Forecast section</div>
+
+<h2>What it's for</h2>
+<p>Projects the Income Statement and Balance Sheet forward, using two selectable methods that answer slightly
+different questions.</p>
+
+<h2>Method 1: Driver-based (the default)</h2>
+<div class="formula"><span class="label">Income statement drivers</span>
+revenue_forecast(month) = sum of the Sales Forecasting projection (Chapter 5) across every product, for that
+month<br>
+expense_forecast(month) = sum of approved budget lines on expense-category GL accounts, for that month</div>
+<div class="formula"><span class="label">Balance sheet drivers</span>
+Accounts Receivable = revenue_forecast / 30 &times; DSO_days &nbsp;(Days Sales Outstanding)<br>
+Accounts Payable = expense_forecast / 30 &times; DPO_days &nbsp;(Days Payable Outstanding)<br>
+Cash = reuses the Cash Flow Forecast's closing balance (Chapter 7), seeded from the actual balance of accounts
+tagged <span class="mono">forecast_role = cash</span><br>
+Equity = actual equity as of the day before the forecast starts, plus the running total of forecasted net income
+(assumes no dividends or new capital — the honest default, since neither is modeled anywhere in this system)<br>
+Every other account (not tagged cash / AR / AP) is carried forward flat at its last actual balance.</div>
+<div class="example"><span class="label">Worked example, GreenLeaf, July, DSO 45 days, DPO 30 days</span>
+Using the July revenue forecast built up across products in Chapter 5 (chips &asymp; $9,292, plus a similarly forecast
+cookies figure) and the July approved expense budget ($7,000 from Chapter 3):<br>
+Accounts Receivable &asymp; revenue_forecast / 30 &times; 45 (one and a half months of revenue sitting uncollected)<br>
+Accounts Payable = $7,000 / 30 &times; 30 = $7,000 (exactly one month of expense, since DPO = 30 days = 1 month)</div>
+
+<h2>Method 2: Historical Trend</h2>
+<p>The alternative for when you have bulk-uploaded multiple years of historical statements (Chapter 11) and want to
+project forward from that trend directly, the way you would by hand in a spreadsheet — pull three or four years of
+statements and extrapolate — rather than from the sales-forecast-plus-budget drivers above.</p>
+<div class="formula"><span class="label">Formula</span>
+revenue_forecast and expense_forecast are each computed independently by applying the same forecasting models from
+Chapter 5 (moving average, weighted average, exponential smoothing, or one of the two ML models) directly to that
+category's own full monthly actuals history — however many years exist, with no cap.</div>
+<p>Pick one of the two ML models here specifically if you want the projection to pick up an actual multi-year growth
+or decline trend — the three statistical models will always project a flat number, exactly as in Chapter 5. This
+method only produces an Income Statement; the Balance Sheet still uses the driver-based method's DSO/DPO logic, since
+a trend-based balance sheet (which deals in running balances, not period-over-period deltas) is a different kind of
+problem that was not built rather than shipped half worked-out.</p>
+</div>
+
+<div class="chapter">
+<h1>13. Scenario Planning</h1>
+<div class="nav-path">Navigation: Scenario Planning</div>
+
+<h2>What it's for</h2>
+<p>A named "what if" — what if sales grow 10% faster than the base forecast, or expenses come in 5% lower — computed
+side by side against the exact same base-case Financial Statement Forecast from Chapter 12, so the comparison is
+real and reproducible rather than two disconnected guesses.</p>
+
+<h2>How to use it</h2>
+<div class="steps">
+<span class="label">Steps</span>
+<ol>
+  <li>Enter a <strong>Name</strong>, a <strong>Sales growth %</strong>, and an <strong>Expense growth %</strong> (use
+  a negative number for a decrease), then click <strong>Create Scenario</strong>.</li>
+  <li>Select the scenario to see its Income Statement and Balance Sheet forecast next to the base case (0% growth on
+  both).</li>
+</ol>
+</div>
+
+<div class="formula"><span class="label">Formula</span>
+sales_factor = 1 + sales_growth_pct / 100<br>
+expense_factor = 1 + expense_growth_pct / 100<br>
+Every month's revenue_forecast and expense_forecast (Chapter 12) is multiplied by these factors. The Balance Sheet's
+Cash line is recomputed with the same factors applied to the Cash Flow Forecast's inputs, so Cash does not silently
+stay at the base case while everything else moves.</div>
+<div class="example"><span class="label">Worked example: "Optimistic" scenario, +10% sales, &minus;5% expense, applied
+to GreenLeaf's July driver-based forecast</span>
+sales_factor = 1.10, expense_factor = 0.95<br>
+Base revenue_forecast &asymp; $9,292 (chips) &rarr; scenario revenue &asymp; $9,292 &times; 1.10 = <strong>$10,221</strong><br>
+Base expense_forecast = $7,000 &rarr; scenario expense = $7,000 &times; 0.95 = <strong>$6,650</strong><br>
+Base net profit &asymp; $2,292 &rarr; scenario net profit &asymp; $10,221 &minus; $6,650 = <strong>$3,571</strong></div>
+</div>
+
+<div class="chapter">
+<h1>14. FX Scenario</h1>
+<div class="nav-path">Navigation: FX Scenario</div>
+
+<h2>What it's for</h2>
+<p>The currency-risk counterpart to Scenario Planning — instead of asking "what if the business grows," it asks "what
+if the exchange rate moves." It converts your non-base-currency sales into your base currency using the most recent
+rate on file, then shows what the same foreign-currency revenue would be worth if that rate moved by a hypothetical
+percentage.</p>
+
+<h2>How to use it</h2>
+<div class="steps">
+<span class="label">Steps</span>
+<ol>
+  <li>Under <strong>Exchange Rates</strong>, enter a From currency, To currency, Date, and Rate, then click
+  <strong>Save rate</strong>. Saving the same currency pair and date again updates the rate in place rather than
+  creating a duplicate.</li>
+  <li>Set a date range and a <strong>Shock %</strong> (negative for a depreciation, positive for an appreciation),
+  then click <strong>Run scenario</strong>.</li>
+</ol>
+</div>
+
+<div class="formula"><span class="label">Formula</span>
+For each non-base-currency sale in the range: the system finds the most recent exchange rate on or before that
+sale's period — never a future-dated rate, and never an invented 1:1 fallback if none exists.<br>
+base_amount = native_amount &times; rate_used<br>
+shocked_amount = native_amount &times; rate_used &times; (1 + shock_pct / 100)<br>
+impact = sum(shocked_amount) &minus; sum(base_amount)</div>
+<div class="example"><span class="label">Worked example</span>
+Suppose GreenLeaf also sells &euro;1,000 worth of product in Europe in a given month, and a EUR&rarr;USD rate of 1.10
+is on file dated on or before that month.<br>
+base_amount = &euro;1,000 &times; 1.10 = $1,100<br>
+With a &minus;10% shock (the euro weakens against the dollar):<br>
+shocked_amount = &euro;1,000 &times; 1.10 &times; 0.90 = $990<br>
+impact = $990 &minus; $1,100 = <strong>&minus;$110</strong> &nbsp;(the company would book $110 less in dollar
+terms for the exact same &euro;1,000 of sales)</div>
+<p>Any currency with no rate on file at all is listed separately and excluded from the totals — it is not assumed to
+convert at 1:1, since that would misrepresent an unknown as a fact. This tool is deliberately scoped to sales actuals
+only; it does not retroactively convert every other report in the system (Financial Statements, KPIs, Cash Flow) to
+multi-currency, since that would be a much larger and riskier change than a single scenario tool.</p>
+</div>
+
+<div class="chapter">
+<h1>15. Monte Carlo Simulation</h1>
+<div class="nav-path">Navigation: Sales Forecast &rarr; Monte Carlo simulation section</div>
+
+<h2>What it's for</h2>
+<p>The point forecast and confidence interval in Chapter 5 use one fixed-width band for every future month, no matter
+how far out you look. In reality, the further into the future you forecast, the more can go differently — a
+projection six months out should carry a wider range of plausible outcomes than a projection one month out. Monte
+Carlo simulation captures that by running many randomized trials instead of one formula.</p>
+
+<h2>How it works</h2>
+<div class="formula"><span class="label">Formula</span>
+1. Compute the point forecast for each future month exactly as in Chapter 5.<br>
+2. Compute residual_std, the same historical volatility measure used for the confidence interval.<br>
+3. Run 1,000 trials. In each trial, draw a random shock for every month from a normal distribution centered on zero
+with that standard deviation, and add each month's shock to the running total of all previous shocks in that trial
+(a "random walk") — this is what makes uncertainty compound the further out you go, rather than stay constant.<br>
+4. Add each trial's accumulated shock to that month's point forecast, and floor the result at zero (revenue cannot be
+negative).<br>
+5. Across all 1,000 trial values for a given month, report the 10th percentile (p10), 50th percentile / median (p50),
+and 90th percentile (p90).</div>
+<p>The practical read: p10 to p90 is your realistic range of outcomes for that month, and you will see that range get
+wider the further into the future the month is — exactly the behavior a single confidence interval cannot represent.</p>
+</div>
+
+<div class="chapter">
+<h1>16. AI Insights (Recommendation Engine)</h1>
+<div class="nav-path">Navigation: Dashboard &rarr; AI Insights section</div>
+
+<h2>What it's for</h2>
+<p>A running list of plain-language flags pulled automatically from the other modules, so you do not have to remember
+to go check each one separately.</p>
+
+<h2>What it checks, and how</h2>
+<table>
+<tr><th>Insight</th><th>Rule</th></tr>
+<tr><td>Budget overrun / shortfall</td><td>The same variance and threshold logic as Chapter 8 (5% yellow / 15% red,
+direction-aware by GL category).</td></tr>
+<tr><td>Unbudgeted spend</td><td>An actual is posted to a GL account/period with no approved budget line at all for
+that combination.</td></tr>
+<tr><td>Budget-consumption warning</td><td>The same 80% yellow / 100% red thresholds as Chapter 8's Budget
+Consumption.</td></tr>
+<tr><td>Forecasted sales decline</td><td>The Sales Forecasting model (Chapter 5) projects a lower figure than recent
+actuals.</td></tr>
+<tr><td>Statistical spend/sales anomaly</td><td>The z-score method described in Chapter 4 — flags what is unusual for
+that <em>specific</em> account or product's own history, not a company-wide fixed threshold.</td></tr>
+</table>
+<p>This is explicitly a rule-based engine, not a trained machine-learning model or a language model. Every flag traces
+back to one of the formulas already explained earlier in this manual — there is no hidden logic behind it.</p>
+</div>
+
+<div class="chapter">
+<h1>17. Reports &amp; Exports</h1>
+
+<h2>Excel exports</h2>
+<p>Every major report — Income Statement, Balance Sheet, Financial Statement Forecast, and Sales Forecast — has a
+<strong>Download Excel</strong> button producing a real <span class="mono">.xlsx</span> file with the same figures
+shown on screen, organized into sheets.</p>
+
+<h2>PDF and PowerPoint Board Reports</h2>
+<p>From the Financial Statements page, the <strong>Board Report</strong> section produces a formatted document — not
+a raw table dump — combining the Dashboard's four KPIs (Chapter 4), the Income Statement, and the Balance Sheet for
+whatever date range you have set. <strong>Download PDF</strong> gives a print-ready document; <strong>Download
+PowerPoint</strong> gives the same content as slides, useful for dropping straight into a board deck.</p>
+
+<h2>Bulk data upload</h2>
+<p>Two upload paths exist: a sales CSV/Excel upload (Chapter 5, for revenue history) and a historical statements
+Excel/CSV upload (Chapter 11, for the full chart of accounts across however many years of history you have). Both
+find-or-create the underlying records (products, GL accounts, cost centers) by their code, so re-uploading a file
+with some already-known codes and some new ones only creates what is actually new.</p>
+</div>
+
+<div class="chapter">
+<h1>18. Audit Trail</h1>
+<div class="nav-path">Navigation: Audit Trail</div>
+
+<h2>What it's for</h2>
+<p>A record of who changed what, and when — every budget action through its full approval lifecycle, every actual
+posted, every GL account and cost center created or edited, every scenario created or deleted, and every manual cash
+item added, edited, or deleted.</p>
+
+<h2>How to use it</h2>
+<div class="steps">
+<span class="label">Steps</span>
+<ol>
+  <li>Optionally filter by <strong>Entity type</strong> (Budget, Actual, GL Account, Cost Center, Scenario, Cash
+  Item).</li>
+  <li>Read the table: When, Entity, Action, Actor (the logged-in user who performed it), and a plain-language
+  Summary of what happened.</li>
+</ol>
+</div>
+<p>Each entry is a short, human-readable sentence rather than a raw before/after data dump — "Approved budget
+'Marketing Budget' as finance (Finance Fay)" is meant to be read directly, not decoded.</p>
+</div>
+
+<div class="chapter">
+<h1>19. Quick Reference: Every Formula in One Place</h1>
+<p>For when you just need the formula, not the walkthrough. See the referenced chapter for a fully worked numeric
+example of each.</p>
+
+<table>
+<tr><th>Metric</th><th>Formula</th><th>Chapter</th></tr>
+<tr><td>Gross Margin %</td><td class="mono">&Sigma;contribution margin / &Sigma;revenue &times; 100</td><td>4, 9</td></tr>
+<tr><td>Budget Utilization %</td><td class="mono">&Sigma;spent / &Sigma;approved budget &times; 100</td><td>4</td></tr>
+<tr><td>Forecast Accuracy (MAPE)</td><td class="mono">avg(|actual&minus;forecast| / |actual|) &times; 100, walk-forward</td><td>4</td></tr>
+<tr><td>Contribution margin / unit</td><td class="mono">unit_price &minus; unit_variable_cost</td><td>9</td></tr>
+<tr><td>Contribution margin %</td><td class="mono">contribution / unit_price &times; 100</td><td>9</td></tr>
+<tr><td>Break-even revenue</td><td class="mono">fixed_costs / contribution_margin_ratio</td><td>9</td></tr>
+<tr><td>Margin of safety %</td><td class="mono">(revenue &minus; break_even) / revenue &times; 100</td><td>9</td></tr>
+<tr><td>Operating leverage</td><td class="mono">contribution_margin / net_operating_income</td><td>9</td></tr>
+<tr><td>Variance %</td><td class="mono">(actual &minus; budget) / budget &times; 100</td><td>8</td></tr>
+<tr><td>Flexible: spending variance</td><td class="mono">actual &minus; flexed_amount</td><td>6</td></tr>
+<tr><td>Flexible: volume variance</td><td class="mono">flexed_amount &minus; static_amount</td><td>6</td></tr>
+<tr><td>Capital: payback period</td><td class="mono">investment / annual_cash_flow</td><td>6</td></tr>
+<tr><td>Capital: ROI %</td><td class="mono">net_gain / investment &times; 100</td><td>6</td></tr>
+<tr><td>Material price variance</td><td class="mono">(std_price &minus; actual_price) &times; actual_qty</td><td>10</td></tr>
+<tr><td>Material quantity variance</td><td class="mono">(std_qty_allowed &minus; actual_qty) &times; std_price</td><td>10</td></tr>
+<tr><td>Labor rate variance</td><td class="mono">(std_rate &minus; actual_rate) &times; actual_hours</td><td>10</td></tr>
+<tr><td>Labor efficiency variance</td><td class="mono">(std_hours_allowed &minus; actual_hours) &times; std_rate</td><td>10</td></tr>
+<tr><td>Exponential smoothing</td><td class="mono">level = &alpha;&middot;actual + (1&minus;&alpha;)&middot;level</td><td>5</td></tr>
+<tr><td>Confidence interval</td><td class="mono">forecast &plusmn; 1.96 &times; residual_std</td><td>5</td></tr>
+<tr><td>Anomaly z-score</td><td class="mono">(latest &minus; mean) / population_std, flagged at |z|&ge;2 / &ge;3</td><td>4</td></tr>
+<tr><td>Cash flow: closing balance</td><td class="mono">opening + cash_in_total &minus; cash_out_total</td><td>7</td></tr>
+<tr><td>Days Sales Outstanding (AR)</td><td class="mono">revenue_forecast / 30 &times; DSO_days</td><td>12</td></tr>
+<tr><td>Days Payable Outstanding (AP)</td><td class="mono">expense_forecast / 30 &times; DPO_days</td><td>12</td></tr>
+<tr><td>Scenario growth factor</td><td class="mono">1 + growth_pct / 100, applied multiplicatively</td><td>13</td></tr>
+<tr><td>FX conversion</td><td class="mono">native_amount &times; latest_rate_on_or_before(period)</td><td>14</td></tr>
+<tr><td>Churn risk ratio</td><td class="mono">months_since_last_order / avg_order_interval</td><td>9</td></tr>
+<tr><td>Monte Carlo band</td><td class="mono">point_forecast + cumulative random shock, percentiled across 1,000 trials</td><td>15</td></tr>
+</table>
+
+<div class="footer-note">Finance Engine User Manual — generated 2026. This manual describes the software as built;
+if a feature's behavior in your deployment differs from what is written here, trust the software's own on-screen
+explanatory text first, since features do occasionally evolve after a manual is written.</div>
+</div>
+
+</body>
+</html>
