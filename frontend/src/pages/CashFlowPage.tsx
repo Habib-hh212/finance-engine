@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   CardContent,
+  IconButton,
   MenuItem,
   Stack,
   Table,
@@ -15,10 +16,12 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { EChart } from "../components/EChart";
 import { useCompany } from "../context/CompanyContext";
-import { createCashItem, getCashFlowForecast } from "../api/cashflow";
-import type { CashCategory, CashFlowForecastResponse } from "../api/types";
+import { createCashItem, deleteCashItem, getCashFlowForecast, listCashItems, updateCashItem } from "../api/cashflow";
+import type { CashCategory, CashFlowForecastResponse, CashItem } from "../api/types";
 
 function currentMonthValue() {
   const now = new Date();
@@ -41,13 +44,20 @@ export function CashFlowPage() {
   const [itemPeriod, setItemPeriod] = useState(currentMonthValue());
   const [itemAmount, setItemAmount] = useState("");
   const [itemDescription, setItemDescription] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const [items, setItems] = useState<CashItem[]>([]);
 
   const load = async () => {
     if (!company) return;
     setError(null);
     try {
-      const result = await getCashFlowForecast(company.id, `${startMonth}-01`, periods, lagDays, Number(openingBalance) || 0);
+      const [result, itemList] = await Promise.all([
+        getCashFlowForecast(company.id, `${startMonth}-01`, periods, lagDays, Number(openingBalance) || 0),
+        listCashItems(company.id),
+      ]);
       setData(result);
+      setItems(itemList);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load cash flow forecast");
     }
@@ -58,11 +68,45 @@ export function CashFlowPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [company?.id]);
 
-  const handleAddItem = async () => {
-    if (!company || !itemAmount) return;
-    await createCashItem(company.id, itemCategory, itemDirection, `${itemPeriod}-01`, Number(itemAmount), itemDescription || undefined);
+  const resetForm = () => {
+    setEditingId(null);
+    setItemCategory("payroll");
+    setItemDirection("out");
+    setItemPeriod(currentMonthValue());
     setItemAmount("");
     setItemDescription("");
+  };
+
+  const handleSaveItem = async () => {
+    if (!company || !itemAmount) return;
+    if (editingId) {
+      await updateCashItem(company.id, editingId, {
+        category: itemCategory,
+        direction: itemDirection,
+        period: `${itemPeriod}-01`,
+        amount: Number(itemAmount),
+        description: itemDescription || undefined,
+      });
+    } else {
+      await createCashItem(company.id, itemCategory, itemDirection, `${itemPeriod}-01`, Number(itemAmount), itemDescription || undefined);
+    }
+    resetForm();
+    await load();
+  };
+
+  const handleEditItem = (item: CashItem) => {
+    setEditingId(item.id);
+    setItemCategory(item.category);
+    setItemDirection(item.direction);
+    setItemPeriod(item.period.slice(0, 7));
+    setItemAmount(String(item.amount));
+    setItemDescription(item.description ?? "");
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    if (!company) return;
+    await deleteCashItem(company.id, itemId);
+    if (editingId === itemId) resetForm();
     await load();
   };
 
@@ -132,7 +176,7 @@ export function CashFlowPage() {
       <Card variant="outlined">
         <CardContent>
           <Typography variant="subtitle2" gutterBottom>
-            Add manual cash item
+            {editingId ? "Edit cash item" : "Add manual cash item"}
           </Typography>
           <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", alignItems: "center" }}>
             <TextField select label="Category" size="small" value={itemCategory} onChange={(e) => setItemCategory(e.target.value as CashCategory)} sx={{ minWidth: 180 }}>
@@ -149,12 +193,62 @@ export function CashFlowPage() {
             <TextField label="Period" type="month" size="small" value={itemPeriod} onChange={(e) => setItemPeriod(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
             <TextField label="Amount" type="number" size="small" value={itemAmount} onChange={(e) => setItemAmount(e.target.value)} sx={{ width: 140 }} />
             <TextField label="Description (optional)" size="small" value={itemDescription} onChange={(e) => setItemDescription(e.target.value)} />
-            <Button variant="outlined" onClick={handleAddItem} disabled={!itemAmount}>
-              Add
+            <Button variant="contained" onClick={handleSaveItem} disabled={!itemAmount}>
+              {editingId ? "Save changes" : "Add"}
             </Button>
+            {editingId && (
+              <Button variant="text" onClick={resetForm}>
+                Cancel
+              </Button>
+            )}
           </Stack>
         </CardContent>
       </Card>
+
+      <TableContainer component={Card} variant="outlined">
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Period</TableCell>
+              <TableCell>Category</TableCell>
+              <TableCell>Direction</TableCell>
+              <TableCell align="right">Amount</TableCell>
+              <TableCell>Description</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {items.map((item) => (
+              <TableRow key={item.id} selected={editingId === item.id}>
+                <TableCell>{item.period}</TableCell>
+                <TableCell>{item.category.replace("_", " ")}</TableCell>
+                <TableCell>{item.direction}</TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                  {item.amount.toLocaleString()} {item.currency}
+                </TableCell>
+                <TableCell>{item.description ?? "—"}</TableCell>
+                <TableCell align="right">
+                  <IconButton size="small" onClick={() => handleEditItem(item)} aria-label="Edit cash item">
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton size="small" onClick={() => handleDeleteItem(item.id)} aria-label="Delete cash item">
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+            {items.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    No manual cash items yet.
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       {data && (
         <TableContainer component={Card} variant="outlined">

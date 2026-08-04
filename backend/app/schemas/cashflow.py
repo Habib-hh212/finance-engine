@@ -16,6 +16,15 @@ class CashItemCreate(BaseModel):
     description: Optional[str] = None
 
 
+class CashItemUpdate(BaseModel):
+    category: Optional[CashCategory] = None
+    direction: Optional[Literal["in", "out"]] = None
+    period: Optional[date] = None
+    amount: Optional[float] = None
+    currency: Optional[str] = None
+    description: Optional[str] = None
+
+
 class CashItemOut(BaseModel):
     id: uuid.UUID
     category: str

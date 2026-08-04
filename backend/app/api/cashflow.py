@@ -1,21 +1,28 @@
 import uuid
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_user
 from app.database import get_db
-from app.models import CashItem
-from app.schemas.cashflow import CashFlowForecastResponse, CashFlowPeriodOut, CashItemCreate, CashItemOut
-from app.services import cashflow
+from app.models import CashItem, User
+from app.schemas.cashflow import CashFlowForecastResponse, CashFlowPeriodOut, CashItemCreate, CashItemOut, CashItemUpdate
+from app.services import audit, cashflow
 
 router = APIRouter(prefix="/cashflow", tags=["cashflow"])
 
 
 @router.post("/items", response_model=CashItemOut)
-def create_cash_item(company_id: uuid.UUID, payload: CashItemCreate, db: Session = Depends(get_db)):
+def create_cash_item(
+    company_id: uuid.UUID, payload: CashItemCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
     item = CashItem(company_id=company_id, **payload.model_dump())
     db.add(item)
+    db.flush()
+    audit.record(
+        db, company_id, "cash_item", item.id, "create", current_user, f"Added a {item.direction} cash item of {item.amount} {item.currency} for {item.period}"
+    )
     db.commit()
     db.refresh(item)
     return item
@@ -23,7 +30,41 @@ def create_cash_item(company_id: uuid.UUID, payload: CashItemCreate, db: Session
 
 @router.get("/items", response_model=list[CashItemOut])
 def list_cash_items(company_id: uuid.UUID, db: Session = Depends(get_db)):
-    return db.query(CashItem).filter(CashItem.company_id == company_id).all()
+    return db.query(CashItem).filter(CashItem.company_id == company_id).order_by(CashItem.period.desc()).all()
+
+
+def _get_cash_item_or_404(db: Session, company_id: uuid.UUID, item_id: uuid.UUID) -> CashItem:
+    item = db.query(CashItem).filter(CashItem.id == item_id, CashItem.company_id == company_id).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Cash item not found")
+    return item
+
+
+@router.patch("/items/{item_id}", response_model=CashItemOut)
+def update_cash_item(
+    company_id: uuid.UUID,
+    item_id: uuid.UUID,
+    payload: CashItemUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    item = _get_cash_item_or_404(db, company_id, item_id)
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(item, field, value)
+    audit.record(db, company_id, "cash_item", item.id, "update", current_user, f"Edited a cash item ({item.amount} {item.currency}, {item.period})")
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.delete("/items/{item_id}", status_code=204)
+def delete_cash_item(
+    company_id: uuid.UUID, item_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    item = _get_cash_item_or_404(db, company_id, item_id)
+    audit.record(db, company_id, "cash_item", item.id, "delete", current_user, f"Deleted a cash item ({item.amount} {item.currency}, {item.period})")
+    db.delete(item)
+    db.commit()
 
 
 @router.get("/forecast", response_model=CashFlowForecastResponse)

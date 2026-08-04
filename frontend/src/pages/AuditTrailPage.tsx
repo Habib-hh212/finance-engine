@@ -23,6 +23,7 @@ const ENTITY_TYPES = [
   { value: "budget", label: "Budget" },
   { value: "budget_line", label: "Budget Line" },
   { value: "actual_line", label: "Actual" },
+  { value: "cash_item", label: "Cash Item" },
   { value: "gl_account", label: "GL Account" },
   { value: "cost_center", label: "Cost Center" },
   { value: "scenario", label: "Scenario" },
