@@ -4,7 +4,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import get_current_user, require_company_access
 from app.database import get_db
 from app.models import User
 from app.schemas.period_close import (
@@ -19,7 +19,7 @@ router = APIRouter(tags=["period-close"])
 
 
 @router.get("/period-close/status", response_model=PeriodCloseStatusOut)
-def get_period_close_status(company_id: uuid.UUID, period: date = Query(...), db: Session = Depends(get_db)):
+def get_period_close_status(company_id: uuid.UUID = Depends(require_company_access), period: date = Query(...), db: Session = Depends(get_db)):
     result = period_close.period_close_status(db, company_id, period)
     ready = (
         result.trial_balance_is_balanced
@@ -40,8 +40,8 @@ def get_period_close_status(company_id: uuid.UUID, period: date = Query(...), db
 
 
 @router.post("/year-end/close", response_model=YearEndCloseOut)
-def close_fiscal_year(
-    company_id: uuid.UUID, payload: YearEndCloseIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+def close_fiscal_year( payload: YearEndCloseIn,
+    company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     try:
         entry, net_income, lines_count = period_close.close_fiscal_year(

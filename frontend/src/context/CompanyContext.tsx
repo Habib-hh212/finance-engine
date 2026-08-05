@@ -49,6 +49,14 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+    const handleForbidden = () => load();
+    window.addEventListener("api:forbidden", handleForbidden);
+    return () => window.removeEventListener("api:forbidden", handleForbidden);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   const selectCompany = (id: string) => {
     setSelectedId(id);
     localStorage.setItem(STORAGE_KEY, id);

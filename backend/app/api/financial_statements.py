@@ -5,6 +5,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile
 from sqlalchemy.orm import Session
 
+from app.auth import require_company_access
 from app.database import get_db
 from app.models import GLAccount, JournalEntry, JournalEntryLine
 from app.models.journal_entry import JournalEntryStatus
@@ -27,7 +28,7 @@ def _safe_filename(name: str) -> str:
 
 
 @router.post("/upload-statements", response_model=StatementUploadResult)
-async def upload_statements(company_id: uuid.UUID, file: UploadFile, db: Session = Depends(get_db)):
+async def upload_statements(file: UploadFile, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     if not file.filename.lower().endswith((".xlsx", ".xls", ".csv")):
         raise HTTPException(status_code=400, detail="Only .xlsx, .xls, or .csv files are supported")
     contents = await file.read()
@@ -40,11 +41,10 @@ async def upload_statements(company_id: uuid.UUID, file: UploadFile, db: Session
 
 @router.get("/income-statement", response_model=IncomeStatementOut)
 def get_income_statement(
-    company_id: uuid.UUID,
+    company_id: uuid.UUID = Depends(require_company_access),
     start_period: date = Query(..., description="First day of the first month, e.g. 2026-01-01"),
     end_period: date = Query(..., description="First day of the last month, e.g. 2026-12-01"),
-    db: Session = Depends(get_db),
-):
+    db: Session = Depends(get_db)):
     result = financial_statements.income_statement(db, company_id, start_period, end_period)
     return IncomeStatementOut(
         start_period=result.start_period,
@@ -58,7 +58,7 @@ def get_income_statement(
 
 
 @router.get("/balance-sheet", response_model=BalanceSheetOut)
-def get_balance_sheet(company_id: uuid.UUID, as_of: date = Query(...), db: Session = Depends(get_db)):
+def get_balance_sheet(company_id: uuid.UUID = Depends(require_company_access), as_of: date = Query(...), db: Session = Depends(get_db)):
     result = financial_statements.balance_sheet(db, company_id, as_of)
     return BalanceSheetOut(
         as_of=result.as_of,
@@ -74,29 +74,27 @@ def get_balance_sheet(company_id: uuid.UUID, as_of: date = Query(...), db: Sessi
 
 
 @router.get("/cash-flow-statement", response_model=CashFlowStatementOut)
-def get_cash_flow_statement(company_id: uuid.UUID, start: date = Query(...), end: date = Query(...), db: Session = Depends(get_db)):
+def get_cash_flow_statement(company_id: uuid.UUID = Depends(require_company_access), start: date = Query(...), end: date = Query(...), db: Session = Depends(get_db)):
     result = cash_flow_statement.cash_flow_statement(db, company_id, start, end)
     return CashFlowStatementOut(**result.__dict__)
 
 
 @router.get("/income-statement/trend", response_model=list[IncomeStatementTrendPointOut])
 def get_income_statement_trend(
-    company_id: uuid.UUID,
+    company_id: uuid.UUID = Depends(require_company_access),
     start_period: date = Query(...),
     end_period: date = Query(...),
-    db: Session = Depends(get_db),
-):
+    db: Session = Depends(get_db)):
     rows = financial_statements.income_statement_trend(db, company_id, start_period, end_period)
     return [IncomeStatementTrendPointOut(**row.__dict__) for row in rows]
 
 
 @router.get("/income-statement/export")
 def export_income_statement(
-    company_id: uuid.UUID,
+    company_id: uuid.UUID = Depends(require_company_access),
     start_period: date = Query(...),
     end_period: date = Query(...),
-    db: Session = Depends(get_db),
-):
+    db: Session = Depends(get_db)):
     result = financial_statements.income_statement(db, company_id, start_period, end_period)
     revenue_rows = [{"Code": line.code, "Account": line.name, "Amount": line.amount} for line in result.revenue_lines]
     revenue_rows.append({"Code": "", "Account": "Total Revenue", "Amount": result.total_revenue})
@@ -110,7 +108,7 @@ def export_income_statement(
 
 
 @router.get("/balance-sheet/export")
-def export_balance_sheet(company_id: uuid.UUID, as_of: date = Query(...), db: Session = Depends(get_db)):
+def export_balance_sheet(company_id: uuid.UUID = Depends(require_company_access), as_of: date = Query(...), db: Session = Depends(get_db)):
     result = financial_statements.balance_sheet(db, company_id, as_of)
     asset_rows = [{"Code": line.code, "Account": line.name, "Amount": line.amount} for line in result.asset_lines]
     asset_rows.append({"Code": "", "Account": "Total Assets", "Amount": result.total_assets})
@@ -126,11 +124,10 @@ def export_balance_sheet(company_id: uuid.UUID, as_of: date = Query(...), db: Se
 
 @router.get("/books/export")
 def export_all_books(
-    company_id: uuid.UUID,
+    company_id: uuid.UUID = Depends(require_company_access),
     start: date = Query(..., description="First day of the journal/statement period"),
     end: date = Query(..., description="Last day of the journal/statement period"),
-    db: Session = Depends(get_db),
-):
+    db: Session = Depends(get_db)):
     """Every book at once: the Journal (every posted entry in the range),
     the Trial Balance and Balance Sheet as of the end date, and the Income
     Statement for the range -- one workbook instead of four separate
@@ -202,12 +199,11 @@ def export_all_books(
 
 @router.get("/board-report/pdf")
 def get_board_report_pdf(
-    company_id: uuid.UUID,
+    company_id: uuid.UUID = Depends(require_company_access),
     start_period: date = Query(...),
     end_period: date = Query(...),
     as_of: date = Query(...),
-    db: Session = Depends(get_db),
-):
+    db: Session = Depends(get_db)):
     data = report_generation.build_report_data(db, company_id, start_period, end_period, as_of)
     pdf_bytes = report_generation.render_pdf(data)
     filename = f"{_safe_filename(data.company_name)}-financial-report.pdf"
@@ -216,12 +212,11 @@ def get_board_report_pdf(
 
 @router.get("/board-report/pptx")
 def get_board_report_pptx(
-    company_id: uuid.UUID,
+    company_id: uuid.UUID = Depends(require_company_access),
     start_period: date = Query(...),
     end_period: date = Query(...),
     as_of: date = Query(...),
-    db: Session = Depends(get_db),
-):
+    db: Session = Depends(get_db)):
     data = report_generation.build_report_data(db, company_id, start_period, end_period, as_of)
     pptx_bytes = report_generation.render_pptx(data)
     filename = f"{_safe_filename(data.company_name)}-financial-report.pptx"

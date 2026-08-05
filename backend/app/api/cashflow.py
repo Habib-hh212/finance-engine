@@ -4,7 +4,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import get_current_user, require_company_access
 from app.database import get_db
 from app.models import CashItem, User
 from app.schemas.cashflow import CashFlowForecastResponse, CashFlowPeriodOut, CashItemCreate, CashItemOut, CashItemUpdate
@@ -14,8 +14,8 @@ router = APIRouter(prefix="/cashflow", tags=["cashflow"])
 
 
 @router.post("/items", response_model=CashItemOut)
-def create_cash_item(
-    company_id: uuid.UUID, payload: CashItemCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+def create_cash_item( payload: CashItemCreate,
+    company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     item = CashItem(company_id=company_id, **payload.model_dump())
     db.add(item)
@@ -29,7 +29,7 @@ def create_cash_item(
 
 
 @router.get("/items", response_model=list[CashItemOut])
-def list_cash_items(company_id: uuid.UUID, db: Session = Depends(get_db)):
+def list_cash_items(company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     return db.query(CashItem).filter(CashItem.company_id == company_id).order_by(CashItem.period.desc()).all()
 
 
@@ -42,12 +42,11 @@ def _get_cash_item_or_404(db: Session, company_id: uuid.UUID, item_id: uuid.UUID
 
 @router.patch("/items/{item_id}", response_model=CashItemOut)
 def update_cash_item(
-    company_id: uuid.UUID,
     item_id: uuid.UUID,
     payload: CashItemUpdate,
+    company_id: uuid.UUID = Depends(require_company_access),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
+    current_user: User = Depends(get_current_user)):
     item = _get_cash_item_or_404(db, company_id, item_id)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(item, field, value)
@@ -58,8 +57,8 @@ def update_cash_item(
 
 
 @router.delete("/items/{item_id}", status_code=204)
-def delete_cash_item(
-    company_id: uuid.UUID, item_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+def delete_cash_item( item_id: uuid.UUID,
+    company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     item = _get_cash_item_or_404(db, company_id, item_id)
     audit.record(db, company_id, "cash_item", item.id, "delete", current_user, f"Deleted a cash item ({item.amount} {item.currency}, {item.period})")
@@ -69,13 +68,12 @@ def delete_cash_item(
 
 @router.get("/forecast", response_model=CashFlowForecastResponse)
 def get_cash_flow_forecast(
-    company_id: uuid.UUID,
+    company_id: uuid.UUID = Depends(require_company_access),
     start_period: date = Query(..., description="First month of the forecast, e.g. 2026-08-01"),
     periods: int = Query(12, ge=1, le=24),
     collection_lag_days: int = Query(30, ge=0, le=365, description="Days between a forecasted sale and expected cash receipt"),
     opening_balance: float = Query(0.0),
-    db: Session = Depends(get_db),
-):
+    db: Session = Depends(get_db)):
     rows = cashflow.build_forecast(
         db,
         company_id,

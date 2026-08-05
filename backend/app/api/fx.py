@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import get_current_user, require_company_access
 from app.database import get_db
 from app.models import ExchangeRate, User
 from app.schemas.fx import ExchangeRateCreate, ExchangeRateOut, FxScenarioOut
@@ -61,11 +61,10 @@ def list_exchange_rates(
 
 @router.get("/fx/scenario", response_model=FxScenarioOut)
 def get_fx_scenario(
-    company_id: uuid.UUID,
+    company_id: uuid.UUID = Depends(require_company_access),
     start_period: date = Query(...),
     end_period: date = Query(...),
     shock_pct: float = Query(0.0, description="Hypothetical %% move in the FX rate, e.g. -10 for a 10%% depreciation"),
-    db: Session = Depends(get_db),
-):
+    db: Session = Depends(get_db)):
     result = fx_scenario.simulate_fx_scenario(db, company_id, start_period, end_period, shock_pct)
     return FxScenarioOut(**result.__dict__)

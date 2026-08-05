@@ -4,7 +4,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import get_current_user, require_company_access
 from app.database import get_db
 from app.models import (
     Customer,
@@ -47,7 +47,7 @@ def _get_or_404(db: Session, model, company_id: uuid.UUID, obj_id: uuid.UUID, la
 
 
 @router.post("/vendors", response_model=VendorOut)
-def create_vendor(company_id: uuid.UUID, payload: VendorCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_vendor(payload: VendorCreate, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     vendor = Vendor(company_id=company_id, name=payload.name)
     db.add(vendor)
     db.flush()
@@ -58,13 +58,13 @@ def create_vendor(company_id: uuid.UUID, payload: VendorCreate, db: Session = De
 
 
 @router.get("/vendors", response_model=list[VendorOut])
-def list_vendors(company_id: uuid.UUID, db: Session = Depends(get_db)):
+def list_vendors(company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     vendors = db.query(Vendor).filter(Vendor.company_id == company_id).order_by(Vendor.name).all()
     return [VendorOut(id=v.id, name=v.name) for v in vendors]
 
 
 @router.post("/customers", response_model=CustomerOut)
-def create_customer(company_id: uuid.UUID, payload: CustomerCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_customer(payload: CustomerCreate, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     customer = Customer(company_id=company_id, name=payload.name)
     db.add(customer)
     db.flush()
@@ -75,7 +75,7 @@ def create_customer(company_id: uuid.UUID, payload: CustomerCreate, db: Session 
 
 
 @router.get("/customers", response_model=list[CustomerOut])
-def list_customers(company_id: uuid.UUID, db: Session = Depends(get_db)):
+def list_customers(company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     customers = db.query(Customer).filter(Customer.company_id == company_id).order_by(Customer.name).all()
     return [CustomerOut(id=c.id, name=c.name) for c in customers]
 
@@ -103,7 +103,7 @@ def _invoice_out(db: Session, invoice: CustomerInvoice) -> CustomerInvoiceOut:
 
 
 @router.post("/customer-invoices", response_model=CustomerInvoiceOut)
-def create_customer_invoice(company_id: uuid.UUID, payload: CustomerInvoiceCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_customer_invoice(payload: CustomerInvoiceCreate, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
         invoice = arap.create_customer_invoice(db, company_id, **payload.model_dump())
     except arap.ARAPError as exc:
@@ -114,7 +114,7 @@ def create_customer_invoice(company_id: uuid.UUID, payload: CustomerInvoiceCreat
 
 
 @router.get("/customer-invoices", response_model=list[CustomerInvoiceOut])
-def list_customer_invoices(company_id: uuid.UUID, db: Session = Depends(get_db)):
+def list_customer_invoices(company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     invoices = db.query(CustomerInvoice).filter(CustomerInvoice.company_id == company_id).order_by(CustomerInvoice.invoice_date.desc()).all()
     return [_invoice_out(db, i) for i in invoices]
 
@@ -135,7 +135,7 @@ def _receipt_out(db: Session, receipt: CustomerReceipt) -> CustomerReceiptOut:
 
 
 @router.post("/customer-receipts", response_model=CustomerReceiptOut)
-def create_customer_receipt(company_id: uuid.UUID, payload: CustomerReceiptCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_customer_receipt(payload: CustomerReceiptCreate, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
         receipt = arap.create_customer_receipt(db, company_id, **payload.model_dump())
     except arap.ARAPError as exc:
@@ -146,13 +146,13 @@ def create_customer_receipt(company_id: uuid.UUID, payload: CustomerReceiptCreat
 
 
 @router.get("/customer-receipts", response_model=list[CustomerReceiptOut])
-def list_customer_receipts(company_id: uuid.UUID, db: Session = Depends(get_db)):
+def list_customer_receipts(company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     receipts = db.query(CustomerReceipt).filter(CustomerReceipt.company_id == company_id).order_by(CustomerReceipt.receipt_date.desc()).all()
     return [_receipt_out(db, r) for r in receipts]
 
 
 @router.post("/customer-receipts/apply", response_model=CustomerInvoiceOut)
-def apply_customer_receipt(company_id: uuid.UUID, payload: ApplyReceiptIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def apply_customer_receipt(payload: ApplyReceiptIn, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     receipt = _get_or_404(db, CustomerReceipt, company_id, payload.receipt_id, "Receipt")
     invoice = _get_or_404(db, CustomerInvoice, company_id, payload.invoice_id, "Invoice")
     try:
@@ -165,7 +165,7 @@ def apply_customer_receipt(company_id: uuid.UUID, payload: ApplyReceiptIn, db: S
 
 
 @router.get("/reports/ar-aging", response_model=AgingReportOut)
-def get_ar_aging(company_id: uuid.UUID, as_of: date = Query(...), db: Session = Depends(get_db)):
+def get_ar_aging(company_id: uuid.UUID = Depends(require_company_access), as_of: date = Query(...), db: Session = Depends(get_db)):
     rows = arap.ar_aging(db, company_id, as_of)
     return AgingReportOut(as_of=as_of, rows=[AgingRowOut(**r.__dict__) for r in rows], total_remaining=round(sum(r.remaining_balance for r in rows), 2))
 
@@ -193,7 +193,7 @@ def _bill_out(db: Session, bill: VendorBill) -> VendorBillOut:
 
 
 @router.post("/vendor-bills", response_model=VendorBillOut)
-def create_vendor_bill(company_id: uuid.UUID, payload: VendorBillCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_vendor_bill(payload: VendorBillCreate, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
         bill = arap.create_vendor_bill(db, company_id, **payload.model_dump())
     except arap.ARAPError as exc:
@@ -204,7 +204,7 @@ def create_vendor_bill(company_id: uuid.UUID, payload: VendorBillCreate, db: Ses
 
 
 @router.get("/vendor-bills", response_model=list[VendorBillOut])
-def list_vendor_bills(company_id: uuid.UUID, db: Session = Depends(get_db)):
+def list_vendor_bills(company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     bills = db.query(VendorBill).filter(VendorBill.company_id == company_id).order_by(VendorBill.bill_date.desc()).all()
     return [_bill_out(db, b) for b in bills]
 
@@ -225,7 +225,7 @@ def _payment_out(db: Session, payment: VendorPayment) -> VendorPaymentOut:
 
 
 @router.post("/vendor-payments", response_model=VendorPaymentOut)
-def create_vendor_payment(company_id: uuid.UUID, payload: VendorPaymentCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_vendor_payment(payload: VendorPaymentCreate, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
         payment = arap.create_vendor_payment(db, company_id, **payload.model_dump())
     except arap.ARAPError as exc:
@@ -236,13 +236,13 @@ def create_vendor_payment(company_id: uuid.UUID, payload: VendorPaymentCreate, d
 
 
 @router.get("/vendor-payments", response_model=list[VendorPaymentOut])
-def list_vendor_payments(company_id: uuid.UUID, db: Session = Depends(get_db)):
+def list_vendor_payments(company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     payments = db.query(VendorPayment).filter(VendorPayment.company_id == company_id).order_by(VendorPayment.payment_date.desc()).all()
     return [_payment_out(db, p) for p in payments]
 
 
 @router.post("/vendor-payments/apply", response_model=VendorBillOut)
-def apply_vendor_payment(company_id: uuid.UUID, payload: ApplyPaymentIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def apply_vendor_payment(payload: ApplyPaymentIn, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     payment = _get_or_404(db, VendorPayment, company_id, payload.payment_id, "Payment")
     bill = _get_or_404(db, VendorBill, company_id, payload.bill_id, "Bill")
     try:
@@ -255,6 +255,6 @@ def apply_vendor_payment(company_id: uuid.UUID, payload: ApplyPaymentIn, db: Ses
 
 
 @router.get("/reports/ap-aging", response_model=AgingReportOut)
-def get_ap_aging(company_id: uuid.UUID, as_of: date = Query(...), db: Session = Depends(get_db)):
+def get_ap_aging(company_id: uuid.UUID = Depends(require_company_access), as_of: date = Query(...), db: Session = Depends(get_db)):
     rows = arap.ap_aging(db, company_id, as_of)
     return AgingReportOut(as_of=as_of, rows=[AgingRowOut(**r.__dict__) for r in rows], total_remaining=round(sum(r.remaining_balance for r in rows), 2))

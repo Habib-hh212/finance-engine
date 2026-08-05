@@ -4,7 +4,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import get_current_user, require_company_access
 from app.database import get_db
 from app.models import BankStatementLine, User
 from app.schemas.bank_reconciliation import (
@@ -42,12 +42,11 @@ def _line_out(line: BankStatementLine) -> BankStatementLineOut:
 
 @router.post("/bank-statements/upload", response_model=BankImportResultOut)
 async def upload_bank_statement(
-    company_id: uuid.UUID,
     cash_gl_account_id: uuid.UUID,
     file: UploadFile,
+    company_id: uuid.UUID = Depends(require_company_access),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
+    current_user: User = Depends(get_current_user)):
     if not file.filename.lower().endswith((".xlsx", ".xls", ".csv")):
         raise HTTPException(status_code=400, detail="Only .xlsx, .xls, or .csv files are supported")
     contents = await file.read()
@@ -63,7 +62,7 @@ async def upload_bank_statement(
 
 
 @router.get("/bank-statements", response_model=list[BankStatementLineOut])
-def list_bank_statement_lines(company_id: uuid.UUID, cash_gl_account_id: uuid.UUID, db: Session = Depends(get_db)):
+def list_bank_statement_lines(cash_gl_account_id: uuid.UUID, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     lines = (
         db.query(BankStatementLine)
         .filter(BankStatementLine.company_id == company_id, BankStatementLine.cash_gl_account_id == cash_gl_account_id)
@@ -74,7 +73,13 @@ def list_bank_statement_lines(company_id: uuid.UUID, cash_gl_account_id: uuid.UU
 
 
 @router.post("/bank-statements/{line_id}/match", response_model=BankStatementLineOut)
-def match_bank_statement_line(line_id: uuid.UUID, company_id: uuid.UUID, payload: ManualMatchIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def match_bank_statement_line(
+    line_id: uuid.UUID,
+    payload: ManualMatchIn,
+    company_id: uuid.UUID = Depends(require_company_access),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     line = _get_line_or_404(db, company_id, line_id)
     try:
         line = bankrec.manual_match(db, line, payload.actual_line_id)
@@ -86,7 +91,7 @@ def match_bank_statement_line(line_id: uuid.UUID, company_id: uuid.UUID, payload
 
 
 @router.post("/bank-statements/{line_id}/unmatch", response_model=BankStatementLineOut)
-def unmatch_bank_statement_line(line_id: uuid.UUID, company_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def unmatch_bank_statement_line(line_id: uuid.UUID, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     line = _get_line_or_404(db, company_id, line_id)
     try:
         line = bankrec.unmatch(db, line)
@@ -98,7 +103,7 @@ def unmatch_bank_statement_line(line_id: uuid.UUID, company_id: uuid.UUID, db: S
 
 
 @router.delete("/bank-statements/{line_id}", status_code=204)
-def delete_bank_statement_line(line_id: uuid.UUID, company_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_bank_statement_line(line_id: uuid.UUID, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     line = _get_line_or_404(db, company_id, line_id)
     try:
         bankrec.delete_bank_line(db, line)
@@ -109,19 +114,18 @@ def delete_bank_statement_line(line_id: uuid.UUID, company_id: uuid.UUID, db: Se
 
 
 @router.get("/bank-reconciliation/unmatched-gl-lines", response_model=list[UnmatchedGLLineOut])
-def get_unmatched_gl_lines(company_id: uuid.UUID, cash_gl_account_id: uuid.UUID, db: Session = Depends(get_db)):
+def get_unmatched_gl_lines(cash_gl_account_id: uuid.UUID, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     rows = bankrec.unmatched_gl_lines(db, company_id, cash_gl_account_id)
     return [UnmatchedGLLineOut(**row.__dict__) for row in rows]
 
 
 @router.get("/bank-reconciliation/summary", response_model=ReconciliationSummaryOut)
 def get_reconciliation_summary(
-    company_id: uuid.UUID,
     cash_gl_account_id: uuid.UUID,
+    company_id: uuid.UUID = Depends(require_company_access),
     as_of: date = Query(...),
     bank_statement_ending_balance: float = Query(...),
-    db: Session = Depends(get_db),
-):
+    db: Session = Depends(get_db)):
     try:
         result = bankrec.reconciliation_summary(db, company_id, cash_gl_account_id, as_of, bank_statement_ending_balance)
     except bankrec.BankReconciliationError as exc:

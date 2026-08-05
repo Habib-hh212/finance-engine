@@ -4,7 +4,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import get_current_user, require_company_access
 from app.database import get_db
 from app.models import TAX_DIRECTIONS, TAX_TYPES, GLAccount, TaxCode, User
 from app.schemas.tax_code import TaxCodeCreate, TaxCodeOut, TaxCodeUpdate, TaxReportOut, TaxReportRowOut
@@ -37,8 +37,8 @@ def _tax_code_out(tax_code: TaxCode, account: GLAccount) -> TaxCodeOut:
 
 
 @router.post("/tax-codes", response_model=TaxCodeOut)
-def create_tax_code(
-    company_id: uuid.UUID, payload: TaxCodeCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+def create_tax_code( payload: TaxCodeCreate,
+    company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     if payload.tax_type not in TAX_TYPES:
         raise HTTPException(status_code=422, detail=f"tax_type must be one of {sorted(TAX_TYPES)}")
@@ -58,7 +58,7 @@ def create_tax_code(
 
 
 @router.get("/tax-codes", response_model=list[TaxCodeOut])
-def list_tax_codes(company_id: uuid.UUID, db: Session = Depends(get_db)):
+def list_tax_codes(company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     codes = db.query(TaxCode).filter(TaxCode.company_id == company_id).order_by(TaxCode.country, TaxCode.code).all()
     accounts = {a.id: a for a in db.query(GLAccount).filter(GLAccount.company_id == company_id).all()}
     return [_tax_code_out(c, accounts[c.gl_account_id]) for c in codes]
@@ -67,11 +67,10 @@ def list_tax_codes(company_id: uuid.UUID, db: Session = Depends(get_db)):
 @router.patch("/tax-codes/{tax_code_id}", response_model=TaxCodeOut)
 def update_tax_code(
     tax_code_id: uuid.UUID,
-    company_id: uuid.UUID,
     payload: TaxCodeUpdate,
+    company_id: uuid.UUID = Depends(require_company_access),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
+    current_user: User = Depends(get_current_user)):
     tax_code = db.get(TaxCode, tax_code_id)
     if tax_code is None or tax_code.company_id != company_id:
         raise HTTPException(status_code=404, detail="Tax code not found")
@@ -87,7 +86,7 @@ def update_tax_code(
 
 @router.get("/tax-report", response_model=TaxReportOut)
 def get_tax_report(
-    company_id: uuid.UUID, start: date = Query(...), end: date = Query(...), db: Session = Depends(get_db)
+    company_id: uuid.UUID = Depends(require_company_access), start: date = Query(...), end: date = Query(...), db: Session = Depends(get_db)
 ):
     result = tax_reporting.tax_report(db, company_id, start, end)
     return TaxReportOut(

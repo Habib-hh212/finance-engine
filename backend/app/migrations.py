@@ -19,7 +19,9 @@ Whenever a new column is added to an *already-existing* table, add an
 entry here in the same change -- this is the only thing standing between
 "model changed" and "production silently broken."
 """
-from sqlalchemy import inspect
+import uuid
+
+from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 # (table_name, column_name, DDL type string)
@@ -51,3 +53,39 @@ def apply_additive_columns(engine: Engine) -> None:
             if column in existing_columns:
                 continue
             conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {ddl_type}")
+
+
+def backfill_company_memberships(engine: Engine) -> None:
+    """One-time transition for per-company access control: every company
+    that predates the CompanyMembership table has no membership rows at
+    all, which would lock every existing user out of their own data the
+    moment access checks go live. Rather than guess who "owns" a
+    pre-existing company, this grants every existing user access to every
+    company that currently has zero memberships -- exactly preserving the
+    "any logged-in user can see any company" behavior that was already
+    true for that data, while every *new* company created from here on
+    only grants membership to its actual creator (see api/companies.py).
+    Safe to run on every startup: a company only qualifies while it still
+    has zero memberships, so this never re-grants access someone removed.
+    """
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+    if "company_memberships" not in existing_tables or "companies" not in existing_tables or "users" not in existing_tables:
+        return
+
+    with engine.begin() as conn:
+        orphan_companies = [
+            row[0]
+            for row in conn.execute(
+                text("SELECT c.id FROM companies c LEFT JOIN company_memberships m ON m.company_id = c.id WHERE m.id IS NULL")
+            )
+        ]
+        if not orphan_companies:
+            return
+        user_ids = [row[0] for row in conn.execute(text("SELECT id FROM users"))]
+        for company_id in orphan_companies:
+            for user_id in user_ids:
+                conn.execute(
+                    text("INSERT INTO company_memberships (id, company_id, user_id) VALUES (:id, :company_id, :user_id)"),
+                    {"id": uuid.uuid4(), "company_id": company_id, "user_id": user_id},
+                )
