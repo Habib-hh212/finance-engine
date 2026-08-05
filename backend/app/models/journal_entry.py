@@ -58,3 +58,9 @@ class JournalEntryLine(Base):
     debit_amount: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False, default=0)
     credit_amount: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False, default=0)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Set only on an auto-generated tax line (see app/services/bookkeeping.py
+    # apply_tax_code) -- never on the net line it was calculated from. This
+    # is what a VAT/GST return sums: the actual tax G/L postings, the same
+    # way SAP FI derives a tax return from the tax account's activity.
+    tax_code_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("tax_codes.id"), nullable=True)
+    tax_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)

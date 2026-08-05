@@ -1,5 +1,5 @@
 import { apiDelete, apiGet, apiPost } from "./client";
-import type { JournalEntry, TrialBalance } from "./types";
+import type { GLLedger, JournalEntry, TrialBalance } from "./types";
 
 export interface JournalEntryLineInput {
   gl_account_id: string;
@@ -7,6 +7,7 @@ export interface JournalEntryLineInput {
   credit_amount: number;
   cost_center_id?: string;
   description?: string;
+  tax_code_id?: string;
 }
 
 export const listJournalEntries = (companyId: string, status?: string) =>
@@ -30,3 +31,6 @@ export const deleteJournalEntry = (entryId: string) => apiDelete<void>(`/journal
 
 export const getTrialBalance = (companyId: string, asOf: string) =>
   apiGet<TrialBalance>(`/trial-balance?company_id=${companyId}&as_of=${asOf}`);
+
+export const getGLLedger = (companyId: string, glAccountId: string, start: string, end: string) =>
+  apiGet<GLLedger>(`/gl-ledger?company_id=${companyId}&gl_account_id=${glAccountId}&start=${start}&end=${end}`);

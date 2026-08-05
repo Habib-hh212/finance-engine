@@ -11,6 +11,7 @@ class JournalEntryLineIn(BaseModel):
     credit_amount: float = 0
     cost_center_id: Optional[uuid.UUID] = None
     description: Optional[str] = None
+    tax_code_id: Optional[uuid.UUID] = None
 
 
 class JournalEntryCreate(BaseModel):
@@ -34,6 +35,9 @@ class JournalEntryLineOut(BaseModel):
     debit_amount: float
     credit_amount: float
     description: Optional[str]
+    tax_code_id: Optional[uuid.UUID] = None
+    tax_code: Optional[str] = None
+    tax_amount: Optional[float] = None
 
 
 class JournalEntryOut(BaseModel):
@@ -65,3 +69,26 @@ class TrialBalanceOut(BaseModel):
     total_debit: float
     total_credit: float
     is_balanced: bool
+
+
+class GLLedgerLineOut(BaseModel):
+    journal_entry_id: uuid.UUID
+    journal_entry_line_id: uuid.UUID
+    entry_date: date
+    reference: Optional[str]
+    description: Optional[str]
+    debit_amount: float
+    credit_amount: float
+    running_balance: float
+
+
+class GLLedgerOut(BaseModel):
+    gl_account_id: uuid.UUID
+    gl_account_code: str
+    gl_account_name: str
+    category: str
+    start: date
+    end: date
+    opening_balance: float
+    closing_balance: float
+    lines: list[GLLedgerLineOut]

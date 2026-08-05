@@ -25,6 +25,7 @@ import { useCompany } from "../context/CompanyContext";
 import {
   createJournalEntry,
   deleteJournalEntry,
+  getGLLedger,
   getTrialBalance,
   listJournalEntries,
   postJournalEntry,
@@ -32,10 +33,16 @@ import {
   type JournalEntryLineInput,
 } from "../api/bookkeeping";
 import { listCostCenters, listGLAccounts } from "../api/budgets";
-import type { CostCenter, GLAccount, JournalEntry, TrialBalance } from "../api/types";
+import { listTaxCodes } from "../api/taxCodes";
+import type { CostCenter, GLAccount, GLLedger, JournalEntry, TaxCode, TrialBalance } from "../api/types";
 
 function todayValue() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function firstOfMonthValue() {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
 }
 
 const fmt = (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -53,6 +60,7 @@ interface DraftLine {
   credit_amount: string;
   cost_center_id: string;
   description: string;
+  tax_code_id: string;
 }
 
 let lineKeySeq = 0;
@@ -63,12 +71,14 @@ const blankLine = (): DraftLine => ({
   credit_amount: "",
   cost_center_id: "",
   description: "",
+  tax_code_id: "",
 });
 
 export function BookkeepingPage() {
   const { company } = useCompany();
   const [glAccounts, setGlAccounts] = useState<GLAccount[]>([]);
   const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
+  const [taxCodes, setTaxCodes] = useState<TaxCode[]>([]);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [trialBalance, setTrialBalance] = useState<TrialBalance | null>(null);
   const [asOf, setAsOf] = useState(todayValue());
@@ -79,18 +89,26 @@ export function BookkeepingPage() {
   const [description, setDescription] = useState("");
   const [lines, setLines] = useState<DraftLine[]>([blankLine(), blankLine()]);
 
+  const [ledgerAccountId, setLedgerAccountId] = useState("");
+  const [ledgerStart, setLedgerStart] = useState(firstOfMonthValue());
+  const [ledgerEnd, setLedgerEnd] = useState(todayValue());
+  const [ledger, setLedger] = useState<GLLedger | null>(null);
+  const [ledgerError, setLedgerError] = useState<string | null>(null);
+
   const load = async () => {
     if (!company) return;
     setError(null);
     try {
-      const [gls, centers, entryList, tb] = await Promise.all([
+      const [gls, centers, codes, entryList, tb] = await Promise.all([
         listGLAccounts(company.id),
         listCostCenters(company.id),
+        listTaxCodes(company.id),
         listJournalEntries(company.id),
         getTrialBalance(company.id, asOf),
       ]);
       setGlAccounts(gls);
       setCostCenters(centers);
+      setTaxCodes(codes);
       setEntries(entryList);
       setTrialBalance(tb);
     } catch (err) {
@@ -103,13 +121,44 @@ export function BookkeepingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [company?.id, asOf]);
 
+  const handleLoadLedger = async () => {
+    if (!company || !ledgerAccountId) return;
+    setLedgerError(null);
+    try {
+      setLedger(await getGLLedger(company.id, ledgerAccountId, ledgerStart, ledgerEnd));
+    } catch (err) {
+      setLedger(null);
+      setLedgerError(err instanceof Error ? err.message : "Failed to load the account ledger");
+    }
+  };
+
   const glNameFor = (id: string) => {
     const g = glAccounts.find((a) => a.id === id);
     return g ? `${g.code} ${g.name}` : id;
   };
 
-  const totalDebit = lines.reduce((sum, l) => sum + (Number(l.debit_amount) || 0), 0);
-  const totalCredit = lines.reduce((sum, l) => sum + (Number(l.credit_amount) || 0), 0);
+  // A line's tax code auto-generates an extra tax line server-side (see
+  // app/services/bookkeeping.py apply_tax_code) -- input tax lands on the
+  // debit side, output tax on the credit side -- so the live balance
+  // preview has to include it too, or "Balanced" here would lie about
+  // what the server is actually about to post.
+  const taxAmountFor = (line: DraftLine) => {
+    const taxCode = taxCodes.find((t) => t.id === line.tax_code_id);
+    if (!taxCode) return 0;
+    const base = Number(line.debit_amount) || Number(line.credit_amount) || 0;
+    return Math.round(base * taxCode.rate_pct) / 100;
+  };
+
+  const totalDebit = lines.reduce((sum, l) => {
+    const taxCode = taxCodes.find((t) => t.id === l.tax_code_id);
+    const tax = taxCode?.direction === "input" ? taxAmountFor(l) : 0;
+    return sum + (Number(l.debit_amount) || 0) + tax;
+  }, 0);
+  const totalCredit = lines.reduce((sum, l) => {
+    const taxCode = taxCodes.find((t) => t.id === l.tax_code_id);
+    const tax = taxCode?.direction === "output" ? taxAmountFor(l) : 0;
+    return sum + (Number(l.credit_amount) || 0) + tax;
+  }, 0);
   const difference = Math.round((totalDebit - totalCredit) * 100) / 100;
   const isBalanced = Math.abs(difference) < 0.01 && totalDebit > 0;
 
@@ -136,6 +185,7 @@ export function BookkeepingPage() {
         credit_amount: Number(l.credit_amount) || 0,
         cost_center_id: l.cost_center_id || undefined,
         description: l.description || undefined,
+        tax_code_id: l.tax_code_id || undefined,
       }));
     try {
       await createJournalEntry(company.id, entryDate, payload, reference || undefined, description || undefined, company.base_currency);
@@ -222,6 +272,7 @@ export function BookkeepingPage() {
                 <TableCell align="right">Debit</TableCell>
                 <TableCell align="right">Credit</TableCell>
                 <TableCell>Description</TableCell>
+                <TableCell>Tax Code</TableCell>
                 <TableCell align="right" />
               </TableRow>
             </TableHead>
@@ -285,6 +336,29 @@ export function BookkeepingPage() {
                       onChange={(e) => updateLine(line.key, { description: e.target.value })}
                     />
                   </TableCell>
+                  <TableCell sx={{ minWidth: 180 }}>
+                    <TextField
+                      select
+                      size="small"
+                      fullWidth
+                      value={line.tax_code_id}
+                      onChange={(e) => updateLine(line.key, { tax_code_id: e.target.value })}
+                    >
+                      <MenuItem value="">— none —</MenuItem>
+                      {taxCodes
+                        .filter((t) => t.is_active)
+                        .map((t) => (
+                          <MenuItem key={t.id} value={t.id}>
+                            {t.code} ({t.rate_pct}% {t.direction})
+                          </MenuItem>
+                        ))}
+                    </TextField>
+                    {line.tax_code_id && taxAmountFor(line) > 0 && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                        + {fmt(taxAmountFor(line))} tax
+                      </Typography>
+                    )}
+                  </TableCell>
                   <TableCell align="right">
                     <IconButton size="small" onClick={() => removeLine(line.key)} disabled={lines.length <= 2} aria-label="Remove line">
                       <DeleteIcon fontSize="small" />
@@ -339,6 +413,7 @@ export function BookkeepingPage() {
                   {entry.lines.map((l) => (
                     <Typography key={l.id} variant="caption" sx={{ display: "block" }}>
                       {glNameFor(l.gl_account_id)}: {l.debit_amount ? `Dr ${fmt(l.debit_amount)}` : `Cr ${fmt(l.credit_amount)}`}
+                      {l.tax_code ? ` (${l.tax_code})` : ""}
                     </Typography>
                   ))}
                 </TableCell>
@@ -444,6 +519,117 @@ export function BookkeepingPage() {
           </TableContainer>
         </>
       )}
+
+      <Typography variant="h6">Account Ledger</Typography>
+      <Typography variant="caption" color="text.secondary">
+        The classic general ledger view (a "T-account"): every posted line against one G/L account, in date order,
+        with a running balance -- the detail that both the journal and the trial balance only ever summarize.
+      </Typography>
+      <Card variant="outlined">
+        <CardContent>
+          <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", alignItems: "center" }}>
+            <TextField
+              select
+              label="GL Account"
+              size="small"
+              value={ledgerAccountId}
+              onChange={(e) => setLedgerAccountId(e.target.value)}
+              sx={{ minWidth: 220 }}
+            >
+              <MenuItem value="">— select —</MenuItem>
+              {glAccounts.map((g) => (
+                <MenuItem key={g.id} value={g.id}>
+                  {g.code} {g.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="Start"
+              type="date"
+              size="small"
+              value={ledgerStart}
+              onChange={(e) => setLedgerStart(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="End"
+              type="date"
+              size="small"
+              value={ledgerEnd}
+              onChange={(e) => setLedgerEnd(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <Button variant="contained" onClick={handleLoadLedger} disabled={!ledgerAccountId}>
+              View ledger
+            </Button>
+          </Stack>
+          {ledgerError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {ledgerError}
+            </Alert>
+          )}
+          {ledger && (
+            <Stack spacing={1} sx={{ mt: 2 }}>
+              <Typography variant="body2">
+                {ledger.gl_account_code} {ledger.gl_account_name} ({ledger.category}) &nbsp;&nbsp; Opening balance:{" "}
+                <strong>{fmt(ledger.opening_balance)}</strong> &nbsp;&nbsp; Closing balance:{" "}
+                <strong>{fmt(ledger.closing_balance)}</strong>
+              </Typography>
+              <TableContainer component={Card} variant="outlined">
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Date</TableCell>
+                      <TableCell>Reference</TableCell>
+                      <TableCell>Description</TableCell>
+                      <TableCell align="right">Debit</TableCell>
+                      <TableCell align="right">Credit</TableCell>
+                      <TableCell align="right">Running Balance</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell colSpan={5}>
+                        <Typography variant="body2" sx={{ fontStyle: "italic" }}>
+                          Opening balance
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                        {fmt(ledger.opening_balance)}
+                      </TableCell>
+                    </TableRow>
+                    {ledger.lines.map((line) => (
+                      <TableRow key={line.journal_entry_line_id}>
+                        <TableCell>{line.entry_date}</TableCell>
+                        <TableCell>{line.reference ?? "—"}</TableCell>
+                        <TableCell>{line.description ?? "—"}</TableCell>
+                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                          {line.debit_amount ? fmt(line.debit_amount) : ""}
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                          {line.credit_amount ? fmt(line.credit_amount) : ""}
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
+                          {fmt(line.running_balance)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {ledger.lines.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6}>
+                          <Typography variant="body2" color="text.secondary">
+                            No posted activity against this account in the selected range.
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Stack>
+          )}
+        </CardContent>
+      </Card>
     </Stack>
   );
 }

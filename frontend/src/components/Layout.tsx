@@ -11,6 +11,8 @@ import ContactMailIcon from "@mui/icons-material/ContactMail";
 import HistoryIcon from "@mui/icons-material/History";
 import CurrencyExchangeIcon from "@mui/icons-material/CurrencyExchange";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
+import ListAltIcon from "@mui/icons-material/ListAlt";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import {
   AppBar,
   Box,
@@ -54,7 +56,11 @@ const NAV_GROUPS: { heading: string | null; items: { to: string; label: string; 
   },
   {
     heading: "General Ledger",
-    items: [{ to: "/general-ledger", label: "Bookkeeping", icon: <MenuBookIcon /> }],
+    items: [
+      { to: "/general-ledger", label: "Bookkeeping", icon: <MenuBookIcon /> },
+      { to: "/chart-of-accounts", label: "Chart of Accounts", icon: <ListAltIcon /> },
+      { to: "/tax-codes", label: "Tax Codes (VAT/GST)", icon: <ReceiptLongIcon /> },
+    ],
   },
   {
     heading: "System",

@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import GLAccount, JournalEntry, JournalEntryLine, User
+from app.models import GLAccount, JournalEntry, JournalEntryLine, TaxCode, User
 from app.schemas.journal_entry import (
+    GLLedgerLineOut,
+    GLLedgerOut,
     JournalEntryCreate,
     JournalEntryLineOut,
     JournalEntryOut,
@@ -29,6 +31,7 @@ def _line_inputs(payload_lines) -> list[bookkeeping.LineInput]:
             credit_amount=line.credit_amount,
             cost_center_id=line.cost_center_id,
             description=line.description,
+            tax_code_id=line.tax_code_id,
         )
         for line in payload_lines
     ]
@@ -37,6 +40,7 @@ def _line_inputs(payload_lines) -> list[bookkeeping.LineInput]:
 def _entry_out(db: Session, entry: JournalEntry) -> JournalEntryOut:
     lines = db.query(JournalEntryLine).filter(JournalEntryLine.journal_entry_id == entry.id).all()
     accounts = {a.id: a for a in db.query(GLAccount).filter(GLAccount.company_id == entry.company_id).all()}
+    tax_codes = {tc.id: tc for tc in db.query(TaxCode).filter(TaxCode.company_id == entry.company_id).all()}
     line_outs = [
         JournalEntryLineOut(
             id=line.id,
@@ -47,6 +51,9 @@ def _entry_out(db: Session, entry: JournalEntry) -> JournalEntryOut:
             debit_amount=float(line.debit_amount),
             credit_amount=float(line.credit_amount),
             description=line.description,
+            tax_code_id=line.tax_code_id,
+            tax_code=tax_codes[line.tax_code_id].code if line.tax_code_id in tax_codes else None,
+            tax_amount=float(line.tax_amount) if line.tax_amount is not None else None,
         )
         for line in lines
     ]
@@ -156,4 +163,29 @@ def get_trial_balance(company_id: uuid.UUID, as_of: date = Query(...), db: Sessi
         total_debit=total_debit,
         total_credit=total_credit,
         is_balanced=abs(total_debit - total_credit) <= 0.01,
+    )
+
+
+@router.get("/gl-ledger", response_model=GLLedgerOut)
+def get_gl_ledger(
+    company_id: uuid.UUID,
+    gl_account_id: uuid.UUID,
+    start: date = Query(...),
+    end: date = Query(...),
+    db: Session = Depends(get_db),
+):
+    try:
+        account, opening_balance, closing_balance, lines = bookkeeping.gl_account_ledger(db, company_id, gl_account_id, start, end)
+    except bookkeeping.GLLedgerError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return GLLedgerOut(
+        gl_account_id=account.id,
+        gl_account_code=account.code,
+        gl_account_name=account.name,
+        category=account.category,
+        start=start,
+        end=end,
+        opening_balance=round(opening_balance, 2),
+        closing_balance=round(closing_balance, 2),
+        lines=[GLLedgerLineOut(**line.__dict__) for line in lines],
     )

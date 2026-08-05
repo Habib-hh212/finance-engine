@@ -18,8 +18,9 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.models import ActualLine, GLAccount, JournalEntry, JournalEntryLine
+from app.models import ActualLine, GLAccount, JournalEntry, JournalEntryLine, TaxCode
 from app.models.journal_entry import JournalEntryStatus
+from app.models.tax_code import TaxDirection
 
 BALANCE_TOLERANCE = 0.01
 
@@ -50,6 +51,10 @@ class LineInput:
     credit_amount: float = 0.0
     cost_center_id: Optional[object] = None
     description: Optional[str] = None
+    # Optional: a TaxCode to apply to this line's amount. A matching tax
+    # line is auto-inserted alongside it -- see _expand_tax_line below --
+    # rather than making the caller compute VAT/GST by hand.
+    tax_code_id: Optional[object] = None
 
 
 def create_journal_entry(
@@ -65,8 +70,13 @@ def create_journal_entry(
         raise JournalEntryError("A journal entry needs at least two lines -- a debit and a credit somewhere.")
 
     accounts = {a.id for a in db.query(GLAccount).filter(GLAccount.company_id == company_id).all()}
-    total_debit = 0.0
-    total_credit = 0.0
+    tax_codes = {tc.id: tc for tc in db.query(TaxCode).filter(TaxCode.company_id == company_id).all()}
+
+    # Each user-entered line is validated and kept as-is; a line carrying a
+    # tax_code_id additionally gets an auto-generated tax line appended --
+    # same account convention SAP FI uses (a tax code determination posts
+    # tax to its own G/L account rather than folding it into the net line).
+    expanded: list[dict] = []
     for line in lines:
         if line.gl_account_id not in accounts:
             raise JournalEntryError("A line references a GL account that doesn't belong to this company.")
@@ -76,8 +86,44 @@ def create_journal_entry(
             raise JournalEntryError("Every line needs either a debit or a credit amount.")
         if line.debit_amount < 0 or line.credit_amount < 0:
             raise JournalEntryError("Debit and credit amounts can't be negative.")
-        total_debit += line.debit_amount
-        total_credit += line.credit_amount
+
+        expanded.append(
+            {
+                "gl_account_id": line.gl_account_id,
+                "cost_center_id": line.cost_center_id,
+                "debit_amount": line.debit_amount,
+                "credit_amount": line.credit_amount,
+                "description": line.description,
+                "tax_code_id": None,
+                "tax_amount": None,
+            }
+        )
+
+        if line.tax_code_id is not None:
+            tax_code = tax_codes.get(line.tax_code_id)
+            if tax_code is None:
+                raise JournalEntryError("A line references a tax code that doesn't belong to this company.")
+            if not tax_code.is_active:
+                raise JournalEntryError(f"Tax code {tax_code.code} is inactive.")
+            if tax_code.gl_account_id not in accounts:
+                raise JournalEntryError("The tax code's G/L account doesn't belong to this company.")
+            base_amount = line.debit_amount or line.credit_amount
+            tax_amount = round(base_amount * float(tax_code.rate_pct) / 100, 2)
+            if tax_amount > 0:
+                expanded.append(
+                    {
+                        "gl_account_id": tax_code.gl_account_id,
+                        "cost_center_id": None,
+                        "debit_amount": tax_amount if tax_code.direction == TaxDirection.INPUT else 0.0,
+                        "credit_amount": tax_amount if tax_code.direction == TaxDirection.OUTPUT else 0.0,
+                        "description": f"{tax_code.code} ({tax_code.rate_pct}%) on {line.description or 'line'}",
+                        "tax_code_id": tax_code.id,
+                        "tax_amount": tax_amount,
+                    }
+                )
+
+    total_debit = sum(item["debit_amount"] for item in expanded)
+    total_credit = sum(item["credit_amount"] for item in expanded)
 
     if abs(total_debit - total_credit) > BALANCE_TOLERANCE:
         raise JournalEntryError(
@@ -95,17 +141,8 @@ def create_journal_entry(
     db.add(entry)
     db.flush()
 
-    for line in lines:
-        db.add(
-            JournalEntryLine(
-                journal_entry_id=entry.id,
-                gl_account_id=line.gl_account_id,
-                cost_center_id=line.cost_center_id,
-                debit_amount=line.debit_amount,
-                credit_amount=line.credit_amount,
-                description=line.description,
-            )
-        )
+    for item in expanded:
+        db.add(JournalEntryLine(journal_entry_id=entry.id, **item))
     db.commit()
     db.refresh(entry)
     return entry
@@ -255,3 +292,98 @@ def trial_balance(db: Session, company_id, as_of: date) -> list:
             )
         )
     return sorted(rows, key=lambda r: r.gl_account_code)
+
+
+@dataclass
+class GLLedgerLine:
+    journal_entry_id: object
+    journal_entry_line_id: object
+    entry_date: date
+    reference: Optional[str]
+    description: Optional[str]
+    debit_amount: float
+    credit_amount: float
+    running_balance: float
+
+
+class GLLedgerError(ValueError):
+    """Raised when a GL account ledger is requested for an account that
+    doesn't exist in this company."""
+
+
+def gl_account_ledger(db: Session, company_id, gl_account_id, start: date, end: date):
+    """The classic "general ledger" report -- a T-account: every posted
+    line against one account, in date order, with a running balance. This
+    is the view a trial balance and a journal only ever summarize; this is
+    the underlying detail."""
+    account = db.get(GLAccount, gl_account_id)
+    if account is None or account.company_id != company_id:
+        raise GLLedgerError("GL account not found in this company.")
+
+    opening_entries = (
+        db.query(JournalEntry)
+        .filter(
+            JournalEntry.company_id == company_id,
+            JournalEntry.status == JournalEntryStatus.POSTED,
+            JournalEntry.entry_date < start,
+        )
+        .all()
+    )
+    opening_ids = [e.id for e in opening_entries]
+    opening_debit = 0.0
+    opening_credit = 0.0
+    if opening_ids:
+        for line in (
+            db.query(JournalEntryLine)
+            .filter(JournalEntryLine.journal_entry_id.in_(opening_ids), JournalEntryLine.gl_account_id == gl_account_id)
+            .all()
+        ):
+            opening_debit += float(line.debit_amount)
+            opening_credit += float(line.credit_amount)
+    opening_balance = _signed_amount(account.category, opening_debit, opening_credit)
+
+    period_entries = (
+        db.query(JournalEntry)
+        .filter(
+            JournalEntry.company_id == company_id,
+            JournalEntry.status == JournalEntryStatus.POSTED,
+            JournalEntry.entry_date >= start,
+            JournalEntry.entry_date <= end,
+        )
+        .order_by(JournalEntry.entry_date, JournalEntry.created_at)
+        .all()
+    )
+    entries_by_id = {e.id: e for e in period_entries}
+    period_lines = []
+    if entries_by_id:
+        lines = (
+            db.query(JournalEntryLine)
+            .filter(
+                JournalEntryLine.journal_entry_id.in_(list(entries_by_id.keys())),
+                JournalEntryLine.gl_account_id == gl_account_id,
+            )
+            .all()
+        )
+        period_lines = sorted(
+            lines, key=lambda line: (entries_by_id[line.journal_entry_id].entry_date, entries_by_id[line.journal_entry_id].created_at)
+        )
+
+    running = opening_balance
+    ledger_lines = []
+    for line in period_lines:
+        entry = entries_by_id[line.journal_entry_id]
+        running += _signed_amount(account.category, float(line.debit_amount), float(line.credit_amount))
+        ledger_lines.append(
+            GLLedgerLine(
+                journal_entry_id=entry.id,
+                journal_entry_line_id=line.id,
+                entry_date=entry.entry_date,
+                reference=entry.reference,
+                description=line.description,
+                debit_amount=float(line.debit_amount),
+                credit_amount=float(line.credit_amount),
+                running_balance=round(running, 2),
+            )
+        )
+
+    return account, opening_balance, running, ledger_lines

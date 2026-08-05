@@ -24,6 +24,10 @@ const ContactPage = lazy(() => import("./pages/ContactPage").then((m) => ({ defa
 const AuditTrailPage = lazy(() => import("./pages/AuditTrailPage").then((m) => ({ default: m.AuditTrailPage })));
 const FxScenarioPage = lazy(() => import("./pages/FxScenarioPage").then((m) => ({ default: m.FxScenarioPage })));
 const BookkeepingPage = lazy(() => import("./pages/BookkeepingPage").then((m) => ({ default: m.BookkeepingPage })));
+const ChartOfAccountsPage = lazy(() =>
+  import("./pages/ChartOfAccountsPage").then((m) => ({ default: m.ChartOfAccountsPage })),
+);
+const TaxCodesPage = lazy(() => import("./pages/TaxCodesPage").then((m) => ({ default: m.TaxCodesPage })));
 
 function PageFallback() {
   return (
@@ -53,6 +57,8 @@ function App() {
               <Route path="/audit-trail" element={<AuditTrailPage />} />
               <Route path="/fx-scenario" element={<FxScenarioPage />} />
               <Route path="/general-ledger" element={<BookkeepingPage />} />
+              <Route path="/chart-of-accounts" element={<ChartOfAccountsPage />} />
+              <Route path="/tax-codes" element={<TaxCodesPage />} />
             </Routes>
           </Suspense>
         </Layout>

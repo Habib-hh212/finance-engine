@@ -11,6 +11,7 @@ from app.models.product import Customer, Product
 from app.models.sales import SalesActual, SalesForecast
 from app.models.scenario import Scenario
 from app.models.standard_costing import ProductionActual, StandardCost
+from app.models.tax_code import TAX_DIRECTIONS, TAX_TYPES, TaxCode, TaxDirection, TaxType
 from app.models.user import User
 
 __all__ = [
@@ -39,4 +40,9 @@ __all__ = [
     "JournalEntry",
     "JournalEntryLine",
     "JournalEntryStatus",
+    "TaxCode",
+    "TaxType",
+    "TaxDirection",
+    "TAX_TYPES",
+    "TAX_DIRECTIONS",
 ]
