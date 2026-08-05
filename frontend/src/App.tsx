@@ -33,6 +33,9 @@ const PeriodClosePage = lazy(() => import("./pages/PeriodClosePage").then((m) =>
 const ReceivablesPayablesPage = lazy(() =>
   import("./pages/ReceivablesPayablesPage").then((m) => ({ default: m.ReceivablesPayablesPage })),
 );
+const BankReconciliationPage = lazy(() =>
+  import("./pages/BankReconciliationPage").then((m) => ({ default: m.BankReconciliationPage })),
+);
 
 function PageFallback() {
   return (
@@ -67,6 +70,7 @@ function App() {
               <Route path="/fixed-assets" element={<FixedAssetsPage />} />
               <Route path="/period-close" element={<PeriodClosePage />} />
               <Route path="/receivables-payables" element={<ReceivablesPayablesPage />} />
+              <Route path="/bank-reconciliation" element={<BankReconciliationPage />} />
             </Routes>
           </Suspense>
         </Layout>
