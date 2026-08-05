@@ -19,6 +19,17 @@ from app.models.fixed_asset import (
 from app.models.journal_entry import JournalEntry, JournalEntryLine, JournalEntryStatus
 from app.models.marginal_costing import FixedCost
 from app.models.product import Customer, Product
+from app.models.receivables_payables import (
+    INVOICE_STATUSES,
+    CustomerInvoice,
+    CustomerReceipt,
+    CustomerReceiptApplication,
+    InvoiceStatus,
+    Vendor,
+    VendorBill,
+    VendorPayment,
+    VendorPaymentApplication,
+)
 from app.models.sales import SalesActual, SalesForecast
 from app.models.scenario import Scenario
 from app.models.standard_costing import ProductionActual, StandardCost
@@ -65,4 +76,13 @@ __all__ = [
     "ASSET_STATUSES",
     "DISPOSED_STATUSES",
     "Accrual",
+    "Vendor",
+    "CustomerInvoice",
+    "CustomerReceipt",
+    "CustomerReceiptApplication",
+    "VendorBill",
+    "VendorPayment",
+    "VendorPaymentApplication",
+    "InvoiceStatus",
+    "INVOICE_STATUSES",
 ]

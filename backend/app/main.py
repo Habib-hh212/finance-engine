@@ -23,6 +23,7 @@ from app.api import (
     period_close,
     products,
     profitability,
+    receivables_payables,
     sales,
     scenarios,
     standard_costing,
@@ -79,6 +80,7 @@ app.include_router(tax_codes.router, dependencies=_auth_dep)
 app.include_router(fixed_assets.router, dependencies=_auth_dep)
 app.include_router(accruals.router, dependencies=_auth_dep)
 app.include_router(period_close.router, dependencies=_auth_dep)
+app.include_router(receivables_payables.router, dependencies=_auth_dep)
 
 
 @app.get("/health")

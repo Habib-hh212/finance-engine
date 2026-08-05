@@ -15,6 +15,7 @@ import ListAltIcon from "@mui/icons-material/ListAlt";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import DomainIcon from "@mui/icons-material/Domain";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
+import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
 import {
   AppBar,
   Box,
@@ -64,6 +65,7 @@ const NAV_GROUPS: { heading: string | null; items: { to: string; label: string; 
       { to: "/tax-codes", label: "Tax Codes (VAT/GST)", icon: <ReceiptLongIcon /> },
       { to: "/fixed-assets", label: "Fixed Assets", icon: <DomainIcon /> },
       { to: "/period-close", label: "Period Close", icon: <EventAvailableIcon /> },
+      { to: "/receivables-payables", label: "Receivables & Payables", icon: <RequestQuoteIcon /> },
     ],
   },
   {

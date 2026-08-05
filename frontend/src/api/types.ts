@@ -718,6 +718,91 @@ export interface YearEndCloseResult {
   lines_closed: number;
 }
 
+export type InvoiceStatus = "open" | "partially_paid" | "paid" | "void";
+
+export interface VendorParty {
+  id: string;
+  name: string;
+}
+
+export interface CustomerParty {
+  id: string;
+  name: string;
+}
+
+export interface CustomerInvoice {
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  invoice_number: string;
+  invoice_date: string;
+  due_date: string;
+  revenue_gl_account_id: string;
+  tax_code_id: string | null;
+  amount: number;
+  currency: string;
+  status: InvoiceStatus;
+  remaining_balance: number;
+  journal_entry_id: string;
+}
+
+export interface CustomerReceipt {
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  receipt_date: string;
+  cash_gl_account_id: string;
+  amount: number;
+  reference: string | null;
+  unapplied_balance: number;
+  journal_entry_id: string;
+}
+
+export interface VendorBill {
+  id: string;
+  vendor_id: string;
+  vendor_name: string;
+  bill_number: string;
+  bill_date: string;
+  due_date: string;
+  expense_gl_account_id: string;
+  tax_code_id: string | null;
+  amount: number;
+  currency: string;
+  status: InvoiceStatus;
+  remaining_balance: number;
+  journal_entry_id: string;
+}
+
+export interface VendorPayment {
+  id: string;
+  vendor_id: string;
+  vendor_name: string;
+  payment_date: string;
+  cash_gl_account_id: string;
+  amount: number;
+  reference: string | null;
+  unapplied_balance: number;
+  journal_entry_id: string;
+}
+
+export interface AgingRow {
+  party_id: string;
+  party_name: string;
+  document_id: string;
+  number: string;
+  due_date: string;
+  days_overdue: number;
+  remaining_balance: number;
+  bucket: string;
+}
+
+export interface AgingReport {
+  as_of: string;
+  rows: AgingRow[];
+  total_remaining: number;
+}
+
 export interface CustomerChurnRisk {
   customer_id: string;
   name: string;
