@@ -10,6 +10,7 @@ import TimelineIcon from "@mui/icons-material/Timeline";
 import ContactMailIcon from "@mui/icons-material/ContactMail";
 import HistoryIcon from "@mui/icons-material/History";
 import CurrencyExchangeIcon from "@mui/icons-material/CurrencyExchange";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
 import {
   AppBar,
   Box,
@@ -35,19 +36,33 @@ import { useCompany } from "../context/CompanyContext";
 
 const DRAWER_WIDTH = 240;
 
-const NAV_ITEMS = [
-  { to: "/", label: "Dashboard", icon: <DashboardIcon /> },
-  { to: "/sales-forecast", label: "Sales Forecast", icon: <ShowChartIcon /> },
-  { to: "/budgets", label: "Budget Planning", icon: <AccountBalanceIcon /> },
-  { to: "/cash-flow", label: "Cash Flow", icon: <WaterDropIcon /> },
-  { to: "/controlling", label: "Cost Controlling", icon: <RuleIcon /> },
-  { to: "/profitability", label: "Profitability", icon: <PieChartIcon /> },
-  { to: "/financial-statements", label: "Financial Statements", icon: <DescriptionIcon /> },
-  { to: "/standard-costing", label: "Standard Costing", icon: <PrecisionManufacturingIcon /> },
-  { to: "/scenarios", label: "Scenario Planning", icon: <TimelineIcon /> },
-  { to: "/fx-scenario", label: "FX Scenario", icon: <CurrencyExchangeIcon /> },
-  { to: "/audit-trail", label: "Audit Trail", icon: <HistoryIcon /> },
-  { to: "/contact", label: "Contact", icon: <ContactMailIcon /> },
+const NAV_GROUPS: { heading: string | null; items: { to: string; label: string; icon: ReactNode }[] }[] = [
+  {
+    heading: null,
+    items: [
+      { to: "/", label: "Dashboard", icon: <DashboardIcon /> },
+      { to: "/sales-forecast", label: "Sales Forecast", icon: <ShowChartIcon /> },
+      { to: "/budgets", label: "Budget Planning", icon: <AccountBalanceIcon /> },
+      { to: "/cash-flow", label: "Cash Flow", icon: <WaterDropIcon /> },
+      { to: "/controlling", label: "Cost Controlling", icon: <RuleIcon /> },
+      { to: "/profitability", label: "Profitability", icon: <PieChartIcon /> },
+      { to: "/financial-statements", label: "Financial Statements", icon: <DescriptionIcon /> },
+      { to: "/standard-costing", label: "Standard Costing", icon: <PrecisionManufacturingIcon /> },
+      { to: "/scenarios", label: "Scenario Planning", icon: <TimelineIcon /> },
+      { to: "/fx-scenario", label: "FX Scenario", icon: <CurrencyExchangeIcon /> },
+    ],
+  },
+  {
+    heading: "General Ledger",
+    items: [{ to: "/general-ledger", label: "Bookkeeping", icon: <MenuBookIcon /> }],
+  },
+  {
+    heading: "System",
+    items: [
+      { to: "/audit-trail", label: "Audit Trail", icon: <HistoryIcon /> },
+      { to: "/contact", label: "Contact", icon: <ContactMailIcon /> },
+    ],
+  },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -113,28 +128,47 @@ export function Layout({ children }: { children: ReactNode }) {
       >
         <Toolbar />
         <Box sx={{ overflow: "auto", pt: 1 }}>
-          <List sx={{ px: 0.5 }}>
-            {NAV_ITEMS.map((item) => {
-              const active = location.pathname === item.to;
-              return (
-                <ListItemButton
-                  key={item.to}
-                  component={NavLink}
-                  to={item.to}
-                  selected={active}
-                  sx={{ py: 0.9 }}
-                >
-                  <ListItemIcon sx={{ minWidth: 38, color: active ? "primary.main" : "text.secondary" }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={item.label}
-                    slotProps={{ primary: { sx: { fontSize: "0.9rem", fontWeight: active ? 600 : 500 } } }}
-                  />
-                </ListItemButton>
-              );
-            })}
-          </List>
+          {NAV_GROUPS.map((group, groupIndex) => (
+            <Box key={group.heading ?? `group-${groupIndex}`}>
+              {group.heading && (
+                <>
+                  {groupIndex > 0 && <Divider sx={{ mx: 2, my: 1 }} />}
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      display: "block",
+                      px: 2.5,
+                      pt: 0.5,
+                      pb: 0.5,
+                      fontWeight: 700,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      color: "text.secondary",
+                      fontSize: "0.68rem",
+                    }}
+                  >
+                    {group.heading}
+                  </Typography>
+                </>
+              )}
+              <List sx={{ px: 0.5 }}>
+                {group.items.map((item) => {
+                  const active = location.pathname === item.to;
+                  return (
+                    <ListItemButton key={item.to} component={NavLink} to={item.to} selected={active} sx={{ py: 0.9 }}>
+                      <ListItemIcon sx={{ minWidth: 38, color: active ? "primary.main" : "text.secondary" }}>
+                        {item.icon}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={item.label}
+                        slotProps={{ primary: { sx: { fontSize: "0.9rem", fontWeight: active ? 600 : 500 } } }}
+                      />
+                    </ListItemButton>
+                  );
+                })}
+              </List>
+            </Box>
+          ))}
           <Divider sx={{ mx: 2, my: 1 }} />
         </Box>
       </Drawer>

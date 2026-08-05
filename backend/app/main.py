@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import (
     audit,
     auth,
+    bookkeeping,
     budgets,
     cashflow,
     companies,
@@ -53,6 +54,7 @@ app.include_router(auth.router)
 
 _auth_dep = [Depends(get_current_user)]
 app.include_router(audit.router, dependencies=_auth_dep)
+app.include_router(bookkeeping.router, dependencies=_auth_dep)
 app.include_router(companies.router, dependencies=_auth_dep)
 app.include_router(sales.router, dependencies=_auth_dep)
 app.include_router(products.router, dependencies=_auth_dep)

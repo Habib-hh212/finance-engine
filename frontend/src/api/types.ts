@@ -161,6 +161,7 @@ export interface ActualLine {
   description: string | null;
   actual_quantity: number | null;
   cost_center_id: string | null;
+  journal_entry_line_id: string | null;
 }
 
 export interface VarianceRow {
@@ -463,6 +464,50 @@ export interface FxScenario {
   total_base_shocked: number;
   impact: number;
   unrated_currencies: string[];
+}
+
+export type JournalEntryStatus = "draft" | "posted" | "reversed";
+
+export interface JournalEntryLine {
+  id: string;
+  gl_account_id: string;
+  gl_account_code: string;
+  gl_account_name: string;
+  cost_center_id: string | null;
+  debit_amount: number;
+  credit_amount: number;
+  description: string | null;
+}
+
+export interface JournalEntry {
+  id: string;
+  entry_date: string;
+  reference: string | null;
+  description: string | null;
+  currency: string;
+  status: JournalEntryStatus;
+  reverses_entry_id: string | null;
+  created_at: string;
+  posted_at: string | null;
+  lines: JournalEntryLine[];
+}
+
+export interface TrialBalanceRow {
+  gl_account_id: string;
+  gl_account_code: string;
+  gl_account_name: string;
+  category: GLCategory;
+  total_debit: number;
+  total_credit: number;
+  net_balance: number;
+}
+
+export interface TrialBalance {
+  as_of: string;
+  rows: TrialBalanceRow[];
+  total_debit: number;
+  total_credit: number;
+  is_balanced: boolean;
 }
 
 export interface AuditLogEntry {

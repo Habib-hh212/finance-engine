@@ -5,6 +5,7 @@ from app.models.cashflow import CASH_ITEM_CATEGORIES, CashItem
 from app.models.company import Company
 from app.models.cost_center import CostCenter
 from app.models.exchange_rate import ExchangeRate
+from app.models.journal_entry import JournalEntry, JournalEntryLine, JournalEntryStatus
 from app.models.marginal_costing import FixedCost
 from app.models.product import Customer, Product
 from app.models.sales import SalesActual, SalesForecast
@@ -35,4 +36,7 @@ __all__ = [
     "Scenario",
     "CostCenter",
     "AuditLog",
+    "JournalEntry",
+    "JournalEntryLine",
+    "JournalEntryStatus",
 ]

@@ -23,6 +23,7 @@ const ScenarioPlanningPage = lazy(() =>
 const ContactPage = lazy(() => import("./pages/ContactPage").then((m) => ({ default: m.ContactPage })));
 const AuditTrailPage = lazy(() => import("./pages/AuditTrailPage").then((m) => ({ default: m.AuditTrailPage })));
 const FxScenarioPage = lazy(() => import("./pages/FxScenarioPage").then((m) => ({ default: m.FxScenarioPage })));
+const BookkeepingPage = lazy(() => import("./pages/BookkeepingPage").then((m) => ({ default: m.BookkeepingPage })));
 
 function PageFallback() {
   return (
@@ -51,6 +52,7 @@ function App() {
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/audit-trail" element={<AuditTrailPage />} />
               <Route path="/fx-scenario" element={<FxScenarioPage />} />
+              <Route path="/general-ledger" element={<BookkeepingPage />} />
             </Routes>
           </Suspense>
         </Layout>
