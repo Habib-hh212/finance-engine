@@ -87,5 +87,8 @@ def backfill_company_memberships(engine: Engine) -> None:
             for user_id in user_ids:
                 conn.execute(
                     text("INSERT INTO company_memberships (id, company_id, user_id) VALUES (:id, :company_id, :user_id)"),
-                    {"id": uuid.uuid4(), "company_id": company_id, "user_id": user_id},
+                    # Stringify every UUID: psycopg2 (prod) adapts raw uuid.UUID
+                    # objects automatically, but sqlite3's driver (dev/test)
+                    # doesn't and raises a binding error -- strings work on both.
+                    {"id": str(uuid.uuid4()), "company_id": str(company_id), "user_id": str(user_id)},
                 )
