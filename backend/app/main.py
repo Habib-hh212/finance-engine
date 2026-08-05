@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import (
     audit,
     auth,
+    bookkeeping,
     budgets,
     cashflow,
     companies,
@@ -23,6 +24,7 @@ from app.api import (
     scenarios,
     standard_costing,
     statement_forecast,
+    tax_codes,
 )
 from app.auth import get_current_user
 from app.database import Base, engine
@@ -53,6 +55,7 @@ app.include_router(auth.router)
 
 _auth_dep = [Depends(get_current_user)]
 app.include_router(audit.router, dependencies=_auth_dep)
+app.include_router(bookkeeping.router, dependencies=_auth_dep)
 app.include_router(companies.router, dependencies=_auth_dep)
 app.include_router(sales.router, dependencies=_auth_dep)
 app.include_router(products.router, dependencies=_auth_dep)
@@ -69,6 +72,7 @@ app.include_router(standard_costing.router, dependencies=_auth_dep)
 app.include_router(marginal_costing.router, dependencies=_auth_dep)
 app.include_router(statement_forecast.router, dependencies=_auth_dep)
 app.include_router(scenarios.router, dependencies=_auth_dep)
+app.include_router(tax_codes.router, dependencies=_auth_dep)
 
 
 @app.get("/health")

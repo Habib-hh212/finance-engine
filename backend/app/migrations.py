@@ -33,6 +33,9 @@ ADDITIVE_COLUMNS = [
     ("gl_accounts", "forecast_role", "VARCHAR(30)"),
     ("actual_lines", "cost_center_id", "UUID"),
     ("budget_lines", "cost_center_id", "UUID"),
+    ("actual_lines", "journal_entry_line_id", "UUID"),
+    ("journal_entry_lines", "tax_code_id", "UUID"),
+    ("journal_entry_lines", "tax_amount", "NUMERIC(18,2)"),
 ]
 
 

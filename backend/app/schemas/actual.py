@@ -24,5 +24,6 @@ class ActualLineOut(BaseModel):
     description: Optional[str]
     actual_quantity: Optional[float] = None
     cost_center_id: Optional[uuid.UUID] = None
+    journal_entry_line_id: Optional[uuid.UUID] = None
 
     model_config = {"from_attributes": True}
