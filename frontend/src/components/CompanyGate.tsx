@@ -1,14 +1,13 @@
 import { useState, type ReactNode } from "react";
-import { Alert, Box, Button, Card, CardContent, CircularProgress, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Autocomplete, Box, Button, Card, CardContent, CircularProgress, Stack, TextField, Typography } from "@mui/material";
 import { useCompany } from "../context/CompanyContext";
 import { createCompany } from "../api/companies";
-
-const CURRENCIES = ["USD", "EUR", "GBP", "AED", "PKR", "INR"];
+import { CURRENCIES, type CurrencyOption } from "../data/currencies";
 
 export function CompanyGate({ children }: { children: ReactNode }) {
   const { companies, company, loading, error, refresh, selectCompany } = useCompany();
   const [name, setName] = useState("");
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState<CurrencyOption>(CURRENCIES[0]);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -36,7 +35,7 @@ export function CompanyGate({ children }: { children: ReactNode }) {
       setSubmitting(true);
       setFormError(null);
       try {
-        const created = await createCompany(name.trim(), currency);
+        const created = await createCompany(name.trim(), currency.code);
         await refresh();
         selectCompany(created.id);
       } catch (err) {
@@ -64,13 +63,15 @@ export function CompanyGate({ children }: { children: ReactNode }) {
                 autoFocus
                 fullWidth
               />
-              <TextField select label="Base currency" value={currency} onChange={(e) => setCurrency(e.target.value)} fullWidth>
-                {CURRENCIES.map((c) => (
-                  <MenuItem key={c} value={c}>
-                    {c}
-                  </MenuItem>
-                ))}
-              </TextField>
+              <Autocomplete
+                options={CURRENCIES}
+                getOptionLabel={(c) => `${c.code} – ${c.name}`}
+                value={currency}
+                onChange={(_, value) => value && setCurrency(value)}
+                disableClearable
+                isOptionEqualToValue={(a, b) => a.code === b.code}
+                renderInput={(params) => <TextField {...params} label="Base currency" />}
+              />
               {formError && <Alert severity="error">{formError}</Alert>}
               <Button variant="contained" onClick={handleCreate} disabled={submitting || !name.trim()}>
                 Create company
