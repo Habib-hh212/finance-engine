@@ -10,5 +10,13 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "dev-only-insecure-secret-change-me"
     jwt_expire_minutes: int = 60 * 24 * 7  # 7 days
 
+    # Password reset email. RESEND_API_KEY must be set in production for
+    # /auth/forgot-password to actually deliver mail; left blank locally,
+    # where the reset link is only useful via the API response in tests.
+    resend_api_key: str = ""
+    email_from: str = "Finance Engine <onboarding@resend.dev>"
+    frontend_url: str = "http://localhost:5173"
+    password_reset_expire_minutes: int = 30
+
 
 settings = Settings()

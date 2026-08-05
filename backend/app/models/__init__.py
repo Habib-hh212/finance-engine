@@ -20,6 +20,7 @@ from app.models.fixed_asset import (
 )
 from app.models.journal_entry import JournalEntry, JournalEntryLine, JournalEntryStatus
 from app.models.marginal_costing import FixedCost
+from app.models.password_reset_token import PasswordResetToken
 from app.models.product import Customer, Product
 from app.models.receivables_payables import (
     INVOICE_STATUSES,
@@ -90,4 +91,5 @@ __all__ = [
     "BankStatementLine",
     "MatchType",
     "CompanyMembership",
+    "PasswordResetToken",
 ]

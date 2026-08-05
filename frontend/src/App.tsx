@@ -4,6 +4,7 @@ import { CircularProgress, Box } from "@mui/material";
 import { AuthGate } from "./components/AuthGate";
 import { CompanyGate } from "./components/CompanyGate";
 import { Layout } from "./components/Layout";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
 const SalesForecastPage = lazy(() => import("./pages/SalesForecastPage").then((m) => ({ default: m.SalesForecastPage })));
@@ -45,7 +46,7 @@ function PageFallback() {
   );
 }
 
-function App() {
+function AuthenticatedApp() {
   return (
     <AuthGate>
       <CompanyGate>
@@ -76,6 +77,17 @@ function App() {
         </Layout>
       </CompanyGate>
     </AuthGate>
+  );
+}
+
+function App() {
+  return (
+    <Routes>
+      {/* Reached from an emailed link while logged out -- must stay outside
+          AuthGate, which would otherwise hide it behind the login form. */}
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/*" element={<AuthenticatedApp />} />
+    </Routes>
   );
 }
 
