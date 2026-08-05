@@ -5,6 +5,16 @@ from app.models.cashflow import CASH_ITEM_CATEGORIES, CashItem
 from app.models.company import Company
 from app.models.cost_center import CostCenter
 from app.models.exchange_rate import ExchangeRate
+from app.models.fixed_asset import (
+    ASSET_STATUSES,
+    DEPRECIATION_METHODS,
+    DISPOSED_STATUSES,
+    Asset,
+    AssetClass,
+    AssetStatus,
+    DepreciationEntry,
+    DepreciationMethod,
+)
 from app.models.journal_entry import JournalEntry, JournalEntryLine, JournalEntryStatus
 from app.models.marginal_costing import FixedCost
 from app.models.product import Customer, Product
@@ -45,4 +55,12 @@ __all__ = [
     "TaxDirection",
     "TAX_TYPES",
     "TAX_DIRECTIONS",
+    "AssetClass",
+    "Asset",
+    "DepreciationEntry",
+    "DepreciationMethod",
+    "DEPRECIATION_METHODS",
+    "AssetStatus",
+    "ASSET_STATUSES",
+    "DISPOSED_STATUSES",
 ]
