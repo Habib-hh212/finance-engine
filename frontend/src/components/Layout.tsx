@@ -16,6 +16,7 @@ import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import DomainIcon from "@mui/icons-material/Domain";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import {
   AppBar,
   Box,
@@ -66,6 +67,7 @@ const NAV_GROUPS: { heading: string | null; items: { to: string; label: string; 
       { to: "/fixed-assets", label: "Fixed Assets", icon: <DomainIcon /> },
       { to: "/period-close", label: "Period Close", icon: <EventAvailableIcon /> },
       { to: "/receivables-payables", label: "Receivables & Payables", icon: <RequestQuoteIcon /> },
+      { to: "/bank-reconciliation", label: "Bank Reconciliation", icon: <AccountBalanceWalletIcon /> },
     ],
   },
   {

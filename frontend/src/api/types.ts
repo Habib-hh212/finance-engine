@@ -803,6 +803,40 @@ export interface AgingReport {
   total_remaining: number;
 }
 
+export interface BankImportResult {
+  rows_imported: number;
+  auto_matched: number;
+}
+
+export interface BankStatementLine {
+  id: string;
+  cash_gl_account_id: string;
+  statement_date: string;
+  description: string;
+  amount: number;
+  reference: string | null;
+  matched_actual_line_id: string | null;
+  match_type: "auto" | "manual" | null;
+}
+
+export interface UnmatchedGLLine {
+  actual_line_id: string;
+  amount: number;
+  effective_date: string;
+  description: string | null;
+}
+
+export interface ReconciliationSummary {
+  as_of: string;
+  book_balance: number;
+  bank_statement_ending_balance: number;
+  unmatched_bank_lines_total: number;
+  unmatched_gl_lines_total: number;
+  adjusted_book_balance: number;
+  adjusted_bank_balance: number;
+  is_reconciled: boolean;
+}
+
 export interface CustomerChurnRisk {
   customer_id: string;
   name: string;

@@ -8,6 +8,7 @@ from app.api import (
     accruals,
     audit,
     auth,
+    bank_reconciliation,
     bookkeeping,
     budgets,
     cashflow,
@@ -79,6 +80,7 @@ app.include_router(scenarios.router, dependencies=_auth_dep)
 app.include_router(tax_codes.router, dependencies=_auth_dep)
 app.include_router(fixed_assets.router, dependencies=_auth_dep)
 app.include_router(accruals.router, dependencies=_auth_dep)
+app.include_router(bank_reconciliation.router, dependencies=_auth_dep)
 app.include_router(period_close.router, dependencies=_auth_dep)
 app.include_router(receivables_payables.router, dependencies=_auth_dep)
 

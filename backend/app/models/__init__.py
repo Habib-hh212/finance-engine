@@ -1,6 +1,7 @@
 from app.models.accrual import Accrual
 from app.models.actual import ActualLine
 from app.models.audit_log import AuditLog
+from app.models.bank_reconciliation import BankStatementLine, MatchType
 from app.models.budget import Approval, Budget, BudgetLine, BudgetStatus, BudgetVersion, GLAccount
 from app.models.cashflow import CASH_ITEM_CATEGORIES, CashItem
 from app.models.company import Company
@@ -85,4 +86,6 @@ __all__ = [
     "VendorPaymentApplication",
     "InvoiceStatus",
     "INVOICE_STATUSES",
+    "BankStatementLine",
+    "MatchType",
 ]
