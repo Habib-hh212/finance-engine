@@ -1,3 +1,4 @@
+from app.models.accrual import Accrual
 from app.models.actual import ActualLine
 from app.models.audit_log import AuditLog
 from app.models.budget import Approval, Budget, BudgetLine, BudgetStatus, BudgetVersion, GLAccount
@@ -63,4 +64,5 @@ __all__ = [
     "AssetStatus",
     "ASSET_STATUSES",
     "DISPOSED_STATUSES",
+    "Accrual",
 ]
