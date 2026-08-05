@@ -5,6 +5,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
+    accruals,
     audit,
     auth,
     bookkeeping,
@@ -19,6 +20,7 @@ from app.api import (
     insights,
     kpis,
     marginal_costing,
+    period_close,
     products,
     profitability,
     sales,
@@ -75,6 +77,8 @@ app.include_router(statement_forecast.router, dependencies=_auth_dep)
 app.include_router(scenarios.router, dependencies=_auth_dep)
 app.include_router(tax_codes.router, dependencies=_auth_dep)
 app.include_router(fixed_assets.router, dependencies=_auth_dep)
+app.include_router(accruals.router, dependencies=_auth_dep)
+app.include_router(period_close.router, dependencies=_auth_dep)
 
 
 @app.get("/health")

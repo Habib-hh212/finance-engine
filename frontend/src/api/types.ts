@@ -656,9 +656,66 @@ export interface AssetRegister {
   total_net_book_value: number;
 }
 
+export interface CashFlowStatement {
+  start: string;
+  end: string;
+  net_income: number;
+  depreciation_add_back: number;
+  increase_in_receivables: number;
+  increase_in_payables: number;
+  net_operating_cash_flow: number;
+  asset_acquisitions: number;
+  disposal_proceeds: number;
+  net_investing_cash_flow: number;
+  net_financing_cash_flow: number;
+  net_change_in_cash: number;
+  opening_cash_balance: number;
+  closing_cash_balance: number;
+  is_proven: boolean;
+}
+
 export interface DisposeAssetResult {
   asset: Asset;
   gain_or_loss: number;
+}
+
+export interface Accrual {
+  id: string;
+  journal_entry_id: string;
+  entry_date: string;
+  reference: string | null;
+  description: string | null;
+  amount: number;
+  debit_gl_account_id: string;
+  debit_gl_account_code: string;
+  credit_gl_account_id: string;
+  credit_gl_account_code: string;
+  reversal_date: string;
+  reversed: boolean;
+  reversal_journal_entry_id: string | null;
+  due_for_reversal: boolean;
+}
+
+export interface AssetDepreciationGap {
+  asset_id: string;
+  code: string;
+}
+
+export interface PeriodCloseStatus {
+  period: string;
+  trial_balance_is_balanced: boolean;
+  draft_entries_count: number;
+  depreciation_run_done: boolean;
+  assets_missing_depreciation: AssetDepreciationGap[];
+  accruals_due_for_reversal: number;
+  ready_to_close: boolean;
+}
+
+export interface YearEndCloseResult {
+  journal_entry_id: string;
+  reference: string | null;
+  net_income: number;
+  lines_closed: number;
 }
 
 export interface CustomerChurnRisk {

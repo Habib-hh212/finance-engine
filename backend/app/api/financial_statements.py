@@ -6,14 +6,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFi
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models import GLAccount, JournalEntry, JournalEntryLine
+from app.models.journal_entry import JournalEntryStatus
 from app.schemas.financial_statements import (
     AccountAmountOut,
     BalanceSheetOut,
+    CashFlowStatementOut,
     IncomeStatementOut,
     IncomeStatementTrendPointOut,
     StatementUploadResult,
 )
-from app.services import financial_statements, report_generation, statement_import
+from app.services import bookkeeping, cash_flow_statement, financial_statements, report_generation, statement_import
 from app.services.excel_export import sheets_to_xlsx_response
 
 router = APIRouter(prefix="/reports", tags=["financial-statements"])
@@ -70,6 +73,12 @@ def get_balance_sheet(company_id: uuid.UUID, as_of: date = Query(...), db: Sessi
     )
 
 
+@router.get("/cash-flow-statement", response_model=CashFlowStatementOut)
+def get_cash_flow_statement(company_id: uuid.UUID, start: date = Query(...), end: date = Query(...), db: Session = Depends(get_db)):
+    result = cash_flow_statement.cash_flow_statement(db, company_id, start, end)
+    return CashFlowStatementOut(**result.__dict__)
+
+
 @router.get("/income-statement/trend", response_model=list[IncomeStatementTrendPointOut])
 def get_income_statement_trend(
     company_id: uuid.UUID,
@@ -112,6 +121,82 @@ def export_balance_sheet(company_id: uuid.UUID, as_of: date = Query(...), db: Se
     return sheets_to_xlsx_response(
         {"Assets": asset_rows, "Liabilities": liability_rows, "Equity": equity_rows},
         f"balance-sheet-{as_of}.xlsx",
+    )
+
+
+@router.get("/books/export")
+def export_all_books(
+    company_id: uuid.UUID,
+    start: date = Query(..., description="First day of the journal/statement period"),
+    end: date = Query(..., description="Last day of the journal/statement period"),
+    db: Session = Depends(get_db),
+):
+    """Every book at once: the Journal (every posted entry in the range),
+    the Trial Balance and Balance Sheet as of the end date, and the Income
+    Statement for the range -- one workbook instead of four separate
+    downloads."""
+    accounts = {a.id: a for a in db.query(GLAccount).filter(GLAccount.company_id == company_id).all()}
+    entries = (
+        db.query(JournalEntry)
+        .filter(
+            JournalEntry.company_id == company_id,
+            JournalEntry.status == JournalEntryStatus.POSTED,
+            JournalEntry.entry_date >= start,
+            JournalEntry.entry_date <= end,
+        )
+        .order_by(JournalEntry.entry_date, JournalEntry.created_at)
+        .all()
+    )
+    journal_rows = []
+    if entries:
+        lines = db.query(JournalEntryLine).filter(JournalEntryLine.journal_entry_id.in_([e.id for e in entries])).all()
+        lines_by_entry: dict = {}
+        for line in lines:
+            lines_by_entry.setdefault(line.journal_entry_id, []).append(line)
+        for entry in entries:
+            for line in lines_by_entry.get(entry.id, []):
+                account = accounts.get(line.gl_account_id)
+                journal_rows.append(
+                    {
+                        "Date": entry.entry_date,
+                        "Reference": entry.reference or "",
+                        "Account Code": account.code if account else "?",
+                        "Account Name": account.name if account else "?",
+                        "Debit": float(line.debit_amount),
+                        "Credit": float(line.credit_amount),
+                        "Description": line.description or "",
+                    }
+                )
+
+    tb_rows = bookkeeping.trial_balance(db, company_id, end)
+    trial_balance_rows = [
+        {"Code": r.gl_account_code, "Account": r.gl_account_name, "Category": r.category, "Total Debit": r.total_debit, "Total Credit": r.total_credit, "Net Balance": r.net_balance}
+        for r in tb_rows
+    ]
+
+    stmt = financial_statements.income_statement(db, company_id, start, end)
+    income_rows = [{"Code": line.code, "Account": line.name, "Amount": line.amount} for line in stmt.revenue_lines]
+    income_rows.append({"Code": "", "Account": "Total Revenue", "Amount": stmt.total_revenue})
+    income_rows += [{"Code": line.code, "Account": line.name, "Amount": line.amount} for line in stmt.expense_lines]
+    income_rows.append({"Code": "", "Account": "Total Expense", "Amount": stmt.total_expense})
+    income_rows.append({"Code": "", "Account": "Net Profit", "Amount": stmt.net_profit})
+
+    bs = financial_statements.balance_sheet(db, company_id, end)
+    balance_rows = [{"Code": line.code, "Account": line.name, "Amount": line.amount} for line in bs.asset_lines]
+    balance_rows.append({"Code": "", "Account": "Total Assets", "Amount": bs.total_assets})
+    balance_rows += [{"Code": line.code, "Account": line.name, "Amount": line.amount} for line in bs.liability_lines]
+    balance_rows.append({"Code": "", "Account": "Total Liabilities", "Amount": bs.total_liabilities})
+    balance_rows += [{"Code": line.code, "Account": line.name, "Amount": line.amount} for line in bs.equity_lines]
+    balance_rows.append({"Code": "", "Account": "Total Equity", "Amount": bs.total_equity})
+
+    return sheets_to_xlsx_response(
+        {
+            "Journal": journal_rows,
+            "Trial Balance": trial_balance_rows,
+            "Income Statement": income_rows,
+            "Balance Sheet": balance_rows,
+        },
+        f"books-{start}-to-{end}.xlsx",
     )
 
 

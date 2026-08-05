@@ -22,11 +22,13 @@ import SlideshowIcon from "@mui/icons-material/Slideshow";
 import { EChart } from "../components/EChart";
 import { useCompany } from "../context/CompanyContext";
 import {
+  downloadAllBooks,
   downloadBalanceSheet,
   downloadBoardReportPdf,
   downloadBoardReportPptx,
   downloadIncomeStatement,
   getBalanceSheet,
+  getCashFlowStatement,
   getIncomeStatement,
   getIncomeStatementTrend,
   uploadStatements,
@@ -36,6 +38,7 @@ import type {
   AccountAmount,
   BalanceSheet,
   BalanceSheetForecastPeriod,
+  CashFlowStatement,
   IncomeStatement,
   IncomeStatementForecastPeriod,
   IncomeStatementTrendPoint,
@@ -101,6 +104,7 @@ export function FinancialStatementsPage() {
   const [asOfMonth, setAsOfMonth] = useState(currentMonthValue());
   const [incomeStatement, setIncomeStatement] = useState<IncomeStatement | null>(null);
   const [balanceSheet, setBalanceSheet] = useState<BalanceSheet | null>(null);
+  const [cashFlow, setCashFlow] = useState<CashFlowStatement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [trend, setTrend] = useState<IncomeStatementTrendPoint[]>([]);
@@ -120,7 +124,7 @@ export function FinancialStatementsPage() {
     if (!company) return;
     setError(null);
     try {
-      const [is, bs, trendRows] = await Promise.all([
+      const [is, bs, trendRows, cf] = await Promise.all([
         getIncomeStatement(company.id, `${startMonth}-01`, `${endMonth}-01`),
         getBalanceSheet(company.id, `${asOfMonth}-28`),
         // Deliberately not tied to the Income Statement's own from/to fields --
@@ -128,10 +132,12 @@ export function FinancialStatementsPage() {
         // exists, so it always asks for everything back to a floor date well
         // before any real company data would predate.
         getIncomeStatementTrend(company.id, TREND_HISTORY_FLOOR, `${endMonth}-01`),
+        getCashFlowStatement(company.id, `${startMonth}-01`, `${endMonth}-01`),
       ]);
       setIncomeStatement(is);
       setBalanceSheet(bs);
       setTrend(trendRows);
+      setCashFlow(cf);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load financial statements");
     }
@@ -427,6 +433,112 @@ export function FinancialStatementsPage() {
                     size="small"
                     label={balanceSheet.is_balanced ? "Balanced" : `Off by ${fmt(Math.abs(balanceSheet.difference))}`}
                     color={balanceSheet.is_balanced ? "success" : "error"}
+                  />
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
+        <Typography variant="h6">Cash Flow Statement</Typography>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<DownloadIcon />}
+          onClick={() => downloadAllBooks(company!.id, `${startMonth}-01`, `${endMonth}-01`)}
+          disabled={!company}
+        >
+          Download all books
+        </Button>
+      </Stack>
+      <Typography variant="caption" color="text.secondary">
+        The indirect method, built from what's already posted -- not the forward-looking Cash Flow Forecast elsewhere in
+        this app. Financing activity is reported as 0: this system has no loan or equity-transaction model, so rather
+        than fabricate a number, it's left untracked. Proves itself the same way the Balance Sheet does: opening cash +
+        the net change computed here should equal the actual closing cash balance.
+      </Typography>
+      {cashFlow && (
+        <TableContainer component={Card} variant="outlined">
+          <Table size="small">
+            <TableBody>
+              <TableRow>
+                <TableCell colSpan={2}>
+                  <Typography variant="subtitle2">Operating Activities</Typography>
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Net income</TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(cashFlow.net_income)}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Depreciation (add back)</TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(cashFlow.depreciation_add_back)}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Increase in receivables</TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>({fmt(cashFlow.increase_in_receivables)})</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Increase in payables</TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(cashFlow.increase_in_payables)}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 600 }}>Net Operating Cash Flow</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{fmt(cashFlow.net_operating_cash_flow)}</TableCell>
+              </TableRow>
+
+              <TableRow>
+                <TableCell colSpan={2} sx={{ pt: 2 }}>
+                  <Typography variant="subtitle2">Investing Activities</Typography>
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Asset acquisitions</TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>({fmt(cashFlow.asset_acquisitions)})</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Disposal proceeds</TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(cashFlow.disposal_proceeds)}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 600 }}>Net Investing Cash Flow</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{fmt(cashFlow.net_investing_cash_flow)}</TableCell>
+              </TableRow>
+
+              <TableRow>
+                <TableCell colSpan={2} sx={{ pt: 2 }}>
+                  <Typography variant="subtitle2">Financing Activities</Typography>
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>
+                  <Typography variant="caption" color="text.secondary">Not tracked (no loan/equity model)</Typography>
+                </TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(cashFlow.net_financing_cash_flow)}</TableCell>
+              </TableRow>
+
+              <TableRow>
+                <TableCell sx={{ fontWeight: 700, borderTop: "2px solid", borderColor: "divider" }}>Net Change in Cash</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700, borderTop: "2px solid", borderColor: "divider", fontVariantNumeric: "tabular-nums" }}>
+                  {fmt(cashFlow.net_change_in_cash)}
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Opening cash balance</TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(cashFlow.opening_cash_balance)}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 600 }}>Closing cash balance</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{fmt(cashFlow.closing_cash_balance)}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell colSpan={2}>
+                  <Chip
+                    size="small"
+                    label={cashFlow.is_proven ? "Proven: opening + change = closing" : "Not proven -- check untagged cash/AR/AP accounts"}
+                    color={cashFlow.is_proven ? "success" : "error"}
                   />
                 </TableCell>
               </TableRow>
