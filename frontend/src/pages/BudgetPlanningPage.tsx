@@ -377,7 +377,7 @@ export function BudgetPlanningPage() {
                       size="small"
                       value={glForecastRole}
                       onChange={(e) => setGlForecastRole(e.target.value as GLForecastRole | "")}
-                      slotProps={{ select: { displayEmpty: true } }}
+                      slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
                     >
                       <MenuItem value="">
                         <em>None</em>

@@ -426,7 +426,7 @@ export function FixedAssetsPage() {
               value={methodOverride}
               onChange={(e) => setMethodOverride(e.target.value as DepreciationMethod | "")}
               sx={{ minWidth: 170 }}
-              slotProps={{ select: { displayEmpty: true } }}
+              slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
             >
               <MenuItem value="">
                 <em>class default</em>
