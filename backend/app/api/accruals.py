@@ -4,7 +4,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import get_current_user, require_company_access
 from app.database import get_db
 from app.models import Accrual, GLAccount, JournalEntry, JournalEntryLine, User
 from app.schemas.accrual import AccrualCreate, AccrualOut
@@ -38,7 +38,7 @@ def _accrual_out(db: Session, accrual: Accrual) -> AccrualOut:
 
 
 @router.post("/accruals", response_model=AccrualOut)
-def create_accrual(company_id: uuid.UUID, payload: AccrualCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_accrual(payload: AccrualCreate, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
         accrual = accruals.create_accrual(db, company_id, **payload.model_dump())
     except accruals.AccrualError as exc:
@@ -49,14 +49,14 @@ def create_accrual(company_id: uuid.UUID, payload: AccrualCreate, db: Session = 
 
 
 @router.get("/accruals", response_model=list[AccrualOut])
-def list_accruals(company_id: uuid.UUID, db: Session = Depends(get_db)):
+def list_accruals(company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     rows = db.query(Accrual).filter(Accrual.company_id == company_id).all()
     out = [_accrual_out(db, a) for a in rows]
     return sorted(out, key=lambda a: a.entry_date, reverse=True)
 
 
 @router.post("/accruals/{accrual_id}/reverse", response_model=AccrualOut)
-def reverse_accrual(accrual_id: uuid.UUID, company_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def reverse_accrual(accrual_id: uuid.UUID, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     accrual = db.get(Accrual, accrual_id)
     if accrual is None or accrual.company_id != company_id:
         raise HTTPException(status_code=404, detail="Accrual not found")

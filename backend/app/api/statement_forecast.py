@@ -5,6 +5,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.auth import require_company_access
 from app.database import get_db
 from app.schemas.statement_forecast import BalanceSheetForecastPeriodOut, IncomeStatementForecastPeriodOut
 from app.services import statement_forecast
@@ -15,8 +16,8 @@ router = APIRouter(prefix="/forecast", tags=["statement-forecast"])
 
 @router.get("/income-statement", response_model=list[IncomeStatementForecastPeriodOut])
 def get_income_statement_forecast(
-    company_id: uuid.UUID,
     start_period: date,
+    company_id: uuid.UUID = Depends(require_company_access),
     periods: int = Query(12, ge=1, le=36),
     forecast_method: Literal["driver_based", "historical_trend"] = "driver_based",
     trend_model: str = Query(
@@ -24,8 +25,7 @@ def get_income_statement_forecast(
         description="Only used when forecast_method=historical_trend: moving_average | weighted_average | "
         "exponential_smoothing | random_forest | gradient_boosting",
     ),
-    db: Session = Depends(get_db),
-):
+    db: Session = Depends(get_db)):
     if forecast_method == "historical_trend":
         try:
             rows = statement_forecast.forecast_income_statement_from_history(
@@ -40,14 +40,13 @@ def get_income_statement_forecast(
 
 @router.get("/balance-sheet", response_model=list[BalanceSheetForecastPeriodOut])
 def get_balance_sheet_forecast(
-    company_id: uuid.UUID,
     start_period: date,
+    company_id: uuid.UUID = Depends(require_company_access),
     periods: int = Query(12, ge=1, le=36),
     dso_days: float = 45,
     dpo_days: float = 30,
     collection_lag_days: int = 30,
-    db: Session = Depends(get_db),
-):
+    db: Session = Depends(get_db)):
     rows = statement_forecast.forecast_balance_sheet(
         db, company_id, start_period, periods, dso_days=dso_days, dpo_days=dpo_days, collection_lag_days=collection_lag_days
     )
@@ -56,16 +55,15 @@ def get_balance_sheet_forecast(
 
 @router.get("/export")
 def export_statement_forecast(
-    company_id: uuid.UUID,
     start_period: date,
+    company_id: uuid.UUID = Depends(require_company_access),
     periods: int = Query(12, ge=1, le=36),
     forecast_method: Literal["driver_based", "historical_trend"] = "driver_based",
     trend_model: str = "exponential_smoothing",
     dso_days: float = 45,
     dpo_days: float = 30,
     collection_lag_days: int = 30,
-    db: Session = Depends(get_db),
-):
+    db: Session = Depends(get_db)):
     if forecast_method == "historical_trend":
         try:
             income_rows = statement_forecast.forecast_income_statement_from_history(

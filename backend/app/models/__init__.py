@@ -5,6 +5,7 @@ from app.models.bank_reconciliation import BankStatementLine, MatchType
 from app.models.budget import Approval, Budget, BudgetLine, BudgetStatus, BudgetVersion, GLAccount
 from app.models.cashflow import CASH_ITEM_CATEGORIES, CashItem
 from app.models.company import Company
+from app.models.company_membership import CompanyMembership
 from app.models.cost_center import CostCenter
 from app.models.exchange_rate import ExchangeRate
 from app.models.fixed_asset import (
@@ -88,4 +89,5 @@ __all__ = [
     "INVOICE_STATUSES",
     "BankStatementLine",
     "MatchType",
+    "CompanyMembership",
 ]

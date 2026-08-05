@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import get_current_user, require_company_access
 from app.database import get_db
 from app.models import Asset, AssetClass, User
 from app.models.fixed_asset import DEPRECIATION_METHODS
@@ -75,8 +75,8 @@ def _asset_out(db: Session, asset: Asset, asset_class_name: str) -> AssetOut:
 
 
 @router.post("/asset-classes", response_model=AssetClassOut)
-def create_asset_class(
-    company_id: uuid.UUID, payload: AssetClassCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+def create_asset_class( payload: AssetClassCreate,
+    company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     if payload.default_depreciation_method not in DEPRECIATION_METHODS:
         raise HTTPException(status_code=422, detail=f"default_depreciation_method must be one of {sorted(DEPRECIATION_METHODS)}")
@@ -91,13 +91,13 @@ def create_asset_class(
 
 
 @router.get("/asset-classes", response_model=list[AssetClassOut])
-def list_asset_classes(company_id: uuid.UUID, db: Session = Depends(get_db)):
+def list_asset_classes(company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     classes = db.query(AssetClass).filter(AssetClass.company_id == company_id).order_by(AssetClass.name).all()
     return [_asset_class_out(c) for c in classes]
 
 
 @router.post("/assets", response_model=AssetOut)
-def create_asset(company_id: uuid.UUID, payload: AssetCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_asset(payload: AssetCreate, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if payload.depreciation_method is not None and payload.depreciation_method not in DEPRECIATION_METHODS:
         raise HTTPException(status_code=422, detail=f"depreciation_method must be one of {sorted(DEPRECIATION_METHODS)}")
     try:
@@ -111,7 +111,7 @@ def create_asset(company_id: uuid.UUID, payload: AssetCreate, db: Session = Depe
 
 
 @router.get("/assets", response_model=list[AssetOut])
-def list_assets(company_id: uuid.UUID, status: Optional[str] = Query(None), db: Session = Depends(get_db)):
+def list_assets(company_id: uuid.UUID = Depends(require_company_access), status: Optional[str] = Query(None), db: Session = Depends(get_db)):
     query = db.query(Asset).filter(Asset.company_id == company_id)
     if status is not None:
         query = query.filter(Asset.status == status)
@@ -121,7 +121,7 @@ def list_assets(company_id: uuid.UUID, status: Optional[str] = Query(None), db: 
 
 
 @router.get("/assets/register", response_model=AssetRegisterOut)
-def get_asset_register(company_id: uuid.UUID, as_of: date = Query(...), db: Session = Depends(get_db)):
+def get_asset_register(company_id: uuid.UUID = Depends(require_company_access), as_of: date = Query(...), db: Session = Depends(get_db)):
     rows = fixed_assets.asset_register(db, company_id, as_of)
     return AssetRegisterOut(
         as_of=as_of,
@@ -133,7 +133,7 @@ def get_asset_register(company_id: uuid.UUID, as_of: date = Query(...), db: Sess
 
 
 @router.get("/assets/{asset_id}", response_model=AssetOut)
-def get_asset(asset_id: uuid.UUID, company_id: uuid.UUID, db: Session = Depends(get_db)):
+def get_asset(asset_id: uuid.UUID, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     asset = _get_asset_or_404(db, company_id, asset_id)
     asset_class = db.get(AssetClass, asset.asset_class_id)
     return _asset_out(db, asset, asset_class.name if asset_class else "?")
@@ -142,11 +142,10 @@ def get_asset(asset_id: uuid.UUID, company_id: uuid.UUID, db: Session = Depends(
 @router.post("/assets/{asset_id}/transfer", response_model=AssetOut)
 def transfer_asset(
     asset_id: uuid.UUID,
-    company_id: uuid.UUID,
     payload: TransferAssetIn,
+    company_id: uuid.UUID = Depends(require_company_access),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
+    current_user: User = Depends(get_current_user)):
     asset = _get_asset_or_404(db, company_id, asset_id)
     try:
         asset = fixed_assets.transfer_asset(db, asset, payload.to_cost_center_id)
@@ -161,11 +160,10 @@ def transfer_asset(
 @router.post("/assets/{asset_id}/dispose", response_model=DisposeAssetOut)
 def dispose_asset(
     asset_id: uuid.UUID,
-    company_id: uuid.UUID,
     payload: DisposeAssetIn,
+    company_id: uuid.UUID = Depends(require_company_access),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
+    current_user: User = Depends(get_current_user)):
     asset = _get_asset_or_404(db, company_id, asset_id)
     try:
         asset, gain_or_loss = fixed_assets.dispose_asset(
@@ -195,7 +193,7 @@ def dispose_asset(
 
 @router.post("/assets/depreciation-run", response_model=DepreciationRunOut)
 def depreciation_run(
-    company_id: uuid.UUID, period: date = Query(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+    company_id: uuid.UUID = Depends(require_company_access), period: date = Query(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     results = fixed_assets.run_depreciation(db, company_id, period)
     total = round(sum(r.depreciation_amount for r in results), 2)

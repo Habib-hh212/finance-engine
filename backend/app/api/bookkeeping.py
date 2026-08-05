@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import get_current_user, require_company_access, require_resource_company_access
 from app.database import get_db
 from app.models import GLAccount, JournalEntry, JournalEntryLine, TaxCode, User
 from app.schemas.journal_entry import (
@@ -71,16 +71,17 @@ def _entry_out(db: Session, entry: JournalEntry) -> JournalEntryOut:
     )
 
 
-def _get_entry_or_404(db: Session, entry_id: uuid.UUID) -> JournalEntry:
+def _get_entry_or_404(db: Session, entry_id: uuid.UUID, current_user: User) -> JournalEntry:
     entry = db.get(JournalEntry, entry_id)
     if entry is None:
         raise HTTPException(status_code=404, detail="Journal entry not found")
+    require_resource_company_access(db, current_user, entry.company_id)
     return entry
 
 
 @router.post("/journal-entries", response_model=JournalEntryOut)
-def create_journal_entry(
-    company_id: uuid.UUID, payload: JournalEntryCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+def create_journal_entry( payload: JournalEntryCreate,
+    company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     try:
         entry = bookkeeping.create_journal_entry(
@@ -102,7 +103,7 @@ def create_journal_entry(
 
 
 @router.get("/journal-entries", response_model=list[JournalEntryOut])
-def list_journal_entries(company_id: uuid.UUID, status: Optional[str] = Query(None), db: Session = Depends(get_db)):
+def list_journal_entries(company_id: uuid.UUID = Depends(require_company_access), status: Optional[str] = Query(None), db: Session = Depends(get_db)):
     query = db.query(JournalEntry).filter(JournalEntry.company_id == company_id)
     if status is not None:
         query = query.filter(JournalEntry.status == status)
@@ -112,7 +113,7 @@ def list_journal_entries(company_id: uuid.UUID, status: Optional[str] = Query(No
 
 @router.post("/journal-entries/{entry_id}/post", response_model=JournalEntryOut)
 def post_journal_entry(entry_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    entry = _get_entry_or_404(db, entry_id)
+    entry = _get_entry_or_404(db, entry_id, current_user)
     try:
         entry = bookkeeping.post_journal_entry(db, entry)
     except bookkeeping.JournalEntryError as exc:
@@ -128,7 +129,7 @@ def post_journal_entry(entry_id: uuid.UUID, db: Session = Depends(get_db), curre
 def reverse_journal_entry(
     entry_id: uuid.UUID, payload: ReverseJournalEntryIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    entry = _get_entry_or_404(db, entry_id)
+    entry = _get_entry_or_404(db, entry_id, current_user)
     original_reference = entry.reference or str(entry.id)
     original_company_id = entry.company_id
     try:
@@ -142,7 +143,7 @@ def reverse_journal_entry(
 
 @router.delete("/journal-entries/{entry_id}", status_code=204)
 def delete_journal_entry(entry_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    entry = _get_entry_or_404(db, entry_id)
+    entry = _get_entry_or_404(db, entry_id, current_user)
     company_id = entry.company_id
     try:
         bookkeeping.delete_draft_journal_entry(db, entry)
@@ -153,7 +154,7 @@ def delete_journal_entry(entry_id: uuid.UUID, db: Session = Depends(get_db), cur
 
 
 @router.get("/trial-balance", response_model=TrialBalanceOut)
-def get_trial_balance(company_id: uuid.UUID, as_of: date = Query(...), db: Session = Depends(get_db)):
+def get_trial_balance(company_id: uuid.UUID = Depends(require_company_access), as_of: date = Query(...), db: Session = Depends(get_db)):
     rows = bookkeeping.trial_balance(db, company_id, as_of)
     total_debit = round(sum(row.total_debit for row in rows), 2)
     total_credit = round(sum(row.total_credit for row in rows), 2)
@@ -168,12 +169,11 @@ def get_trial_balance(company_id: uuid.UUID, as_of: date = Query(...), db: Sessi
 
 @router.get("/gl-ledger", response_model=GLLedgerOut)
 def get_gl_ledger(
-    company_id: uuid.UUID,
     gl_account_id: uuid.UUID,
+    company_id: uuid.UUID = Depends(require_company_access),
     start: date = Query(...),
     end: date = Query(...),
-    db: Session = Depends(get_db),
-):
+    db: Session = Depends(get_db)):
     try:
         account, opening_balance, closing_balance, lines = bookkeeping.gl_account_ledger(db, company_id, gl_account_id, start, end)
     except bookkeeping.GLLedgerError as exc:

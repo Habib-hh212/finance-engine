@@ -23,6 +23,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     window.dispatchEvent(new Event("auth:unauthorized"));
   }
+  if (res.status === 403) {
+    // Membership may have changed since the company list was last loaded
+    // (e.g. a stale selection from another account on this browser) --
+    // let CompanyContext refresh and drop the selection if it's gone.
+    window.dispatchEvent(new Event("api:forbidden"));
+  }
   if (!res.ok) {
     let detail = res.statusText;
     try {

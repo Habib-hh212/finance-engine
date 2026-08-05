@@ -6,6 +6,7 @@ from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
+from app.auth import require_company_access
 from app.database import get_db
 from app.models import SalesActual
 from app.schemas.sales import (
@@ -26,7 +27,7 @@ router = APIRouter(prefix="/sales", tags=["sales"])
 
 
 @router.post("/upload", response_model=SalesUploadResult)
-async def upload_sales_csv(company_id: uuid.UUID, file: UploadFile, db: Session = Depends(get_db)):
+async def upload_sales_csv(file: UploadFile, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     if not file.filename.lower().endswith((".csv", ".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="Only .csv, .xlsx, or .xls files are supported")
     contents = await file.read()
@@ -48,15 +49,14 @@ def _sales_history(db: Session, company_id: uuid.UUID, product_id: uuid.UUID) ->
 
 @router.get("/forecast", response_model=ForecastResponse)
 def get_forecast(
-    company_id: uuid.UUID,
     product_id: uuid.UUID,
+    company_id: uuid.UUID = Depends(require_company_access),
     model: str = Query(
         "exponential_smoothing",
         description="moving_average | weighted_average | exponential_smoothing | random_forest | gradient_boosting",
     ),
     periods: int = Query(3, ge=1, le=24),
-    db: Session = Depends(get_db),
-):
+    db: Session = Depends(get_db)):
     actuals = _sales_history(db, company_id, product_id)
     if not actuals:
         raise HTTPException(status_code=404, detail="No sales history for this company/product")
@@ -95,15 +95,14 @@ def get_forecast(
 
 @router.get("/forecast/demand", response_model=DemandForecastResponse)
 def get_demand_forecast(
-    company_id: uuid.UUID,
     product_id: uuid.UUID,
+    company_id: uuid.UUID = Depends(require_company_access),
     model: str = Query(
         "exponential_smoothing",
         description="moving_average | weighted_average | exponential_smoothing | random_forest | gradient_boosting",
     ),
     periods: int = Query(3, ge=1, le=24),
-    db: Session = Depends(get_db),
-):
+    db: Session = Depends(get_db)):
     """Demand prediction: the same forecast models as /sales/forecast, but
     run against units sold (quantity) instead of revenue ($) -- a genuinely
     different question (how many units to plan production/inventory for)
@@ -145,16 +144,15 @@ def get_demand_forecast(
 
 @router.get("/forecast/monte-carlo", response_model=MonteCarloResponse)
 def get_monte_carlo_forecast(
-    company_id: uuid.UUID,
     product_id: uuid.UUID,
+    company_id: uuid.UUID = Depends(require_company_access),
     model: str = Query(
         "exponential_smoothing",
         description="moving_average | weighted_average | exponential_smoothing | random_forest | gradient_boosting",
     ),
     periods: int = Query(3, ge=1, le=24),
     trials: int = Query(1000, ge=100, le=5000),
-    db: Session = Depends(get_db),
-):
+    db: Session = Depends(get_db)):
     """A p10/p50/p90 band per period from `trials` random simulations,
     rather than the single fixed-width confidence interval `/sales/forecast`
     returns -- see `app/services/monte_carlo.py` for why the band widens
@@ -195,7 +193,7 @@ def get_monte_carlo_forecast(
 
 
 @router.get("/forecast/compare", response_model=ModelComparisonOut)
-def compare_forecast_models(company_id: uuid.UUID, product_id: uuid.UUID, db: Session = Depends(get_db)):
+def compare_forecast_models(product_id: uuid.UUID, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     actuals = _sales_history(db, company_id, product_id)
     if not actuals:
         raise HTTPException(status_code=404, detail="No sales history for this company/product")
@@ -213,13 +211,12 @@ def compare_forecast_models(company_id: uuid.UUID, product_id: uuid.UUID, db: Se
 
 @router.get("/forecast/export")
 def export_forecast(
-    company_id: uuid.UUID,
     product_id: uuid.UUID,
+    company_id: uuid.UUID = Depends(require_company_access),
     model: str = Query("exponential_smoothing"),
     periods: int = Query(3, ge=1, le=24),
-    db: Session = Depends(get_db),
-):
-    result = get_forecast(company_id, product_id, model, periods, db)
+    db: Session = Depends(get_db)):
+    result = get_forecast(product_id=product_id, company_id=company_id, model=model, periods=periods, db=db)
     rows = [
         {
             "Period": p.period,

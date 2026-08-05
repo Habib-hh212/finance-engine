@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import get_current_user, require_company_access, require_resource_company_access
 from app.database import get_db
 from app.models import Approval, Budget, BudgetLine, BudgetVersion, GLAccount, User
 from app.models.budget import DEFAULT_ROLLING_WINDOW_MONTHS, EDITABLE_BUDGET_STATUSES
@@ -27,8 +27,8 @@ router = APIRouter(tags=["budgets"])
 
 
 @router.post("/gl-accounts", response_model=GLAccountOut)
-def create_gl_account(
-    company_id: uuid.UUID, payload: GLAccountCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+def create_gl_account( payload: GLAccountCreate,
+    company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     account = GLAccount(company_id=company_id, **payload.model_dump())
     db.add(account)
@@ -40,7 +40,7 @@ def create_gl_account(
 
 
 @router.get("/gl-accounts", response_model=list[GLAccountOut])
-def list_gl_accounts(company_id: uuid.UUID, db: Session = Depends(get_db)):
+def list_gl_accounts(company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     return db.query(GLAccount).filter(GLAccount.company_id == company_id).all()
 
 
@@ -54,6 +54,7 @@ def update_gl_account(
     account = db.get(GLAccount, account_id)
     if account is None:
         raise HTTPException(status_code=404, detail="GL account not found")
+    require_resource_company_access(db, current_user, account.company_id)
     account.forecast_role = payload.forecast_role
     audit.record(
         db,
@@ -70,8 +71,8 @@ def update_gl_account(
 
 
 @router.post("/budgets", response_model=BudgetOut)
-def create_budget(
-    company_id: uuid.UUID, payload: BudgetCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+def create_budget( payload: BudgetCreate,
+    company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     data = payload.model_dump()
     if data["type"] == "rolling" and data["rolling_window_months"] is None:
@@ -88,20 +89,21 @@ def create_budget(
 
 
 @router.get("/budgets", response_model=list[BudgetOut])
-def list_budgets(company_id: uuid.UUID, db: Session = Depends(get_db)):
+def list_budgets(company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     return db.query(Budget).filter(Budget.company_id == company_id).all()
 
 
-def _get_budget_or_404(db: Session, budget_id: uuid.UUID) -> Budget:
+def _get_budget_or_404(db: Session, budget_id: uuid.UUID, current_user: User) -> Budget:
     budget = db.get(Budget, budget_id)
     if budget is None:
         raise HTTPException(status_code=404, detail="Budget not found")
+    require_resource_company_access(db, current_user, budget.company_id)
     return budget
 
 
 @router.get("/budgets/{budget_id}", response_model=BudgetDetail)
-def get_budget(budget_id: uuid.UUID, db: Session = Depends(get_db)):
-    budget = _get_budget_or_404(db, budget_id)
+def get_budget(budget_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    budget = _get_budget_or_404(db, budget_id, current_user)
     lines = db.query(BudgetLine).filter(BudgetLine.budget_id == budget_id).all()
     approvals = db.query(Approval).filter(Approval.budget_id == budget_id).order_by(Approval.acted_at).all()
     return BudgetDetail(
@@ -118,7 +120,7 @@ def add_budget_lines(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    budget = _get_budget_or_404(db, budget_id)
+    budget = _get_budget_or_404(db, budget_id, current_user)
     if budget.status not in EDITABLE_BUDGET_STATUSES:
         raise HTTPException(status_code=409, detail="Budget lines can only be edited while status is 'draft' or 'rejected'")
 
@@ -162,7 +164,7 @@ def update_budget_line(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    budget = _get_budget_or_404(db, budget_id)
+    budget = _get_budget_or_404(db, budget_id, current_user)
     if budget.status not in EDITABLE_BUDGET_STATUSES:
         raise HTTPException(status_code=409, detail="Budget lines can only be edited while status is 'draft' or 'rejected'")
     line = _get_line_or_404(db, budget_id, line_id)
@@ -178,7 +180,7 @@ def update_budget_line(
 def delete_budget_line(
     budget_id: uuid.UUID, line_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    budget = _get_budget_or_404(db, budget_id)
+    budget = _get_budget_or_404(db, budget_id, current_user)
     if budget.status not in EDITABLE_BUDGET_STATUSES:
         raise HTTPException(status_code=409, detail="Budget lines can only be edited while status is 'draft' or 'rejected'")
     line = _get_line_or_404(db, budget_id, line_id)
@@ -189,7 +191,7 @@ def delete_budget_line(
 
 @router.post("/budgets/{budget_id}/submit", response_model=BudgetOut)
 def submit_budget(budget_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    budget = _get_budget_or_404(db, budget_id)
+    budget = _get_budget_or_404(db, budget_id, current_user)
     try:
         result = budget_workflow.submit_budget(db, budget)
         audit.record(db, budget.company_id, "budget", budget.id, "submit", current_user, f"Submitted budget '{budget.name}' for approval")
@@ -204,7 +206,7 @@ def submit_budget(budget_id: uuid.UUID, db: Session = Depends(get_db), current_u
 def approve_budget(
     budget_id: uuid.UUID, payload: ApprovalAction, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    budget = _get_budget_or_404(db, budget_id)
+    budget = _get_budget_or_404(db, budget_id, current_user)
     role = budget_workflow.expected_role(budget)
     try:
         result = budget_workflow.approve_budget(db, budget, payload.actor_name, payload.comment)
@@ -222,7 +224,7 @@ def approve_budget(
 def reject_budget(
     budget_id: uuid.UUID, payload: ApprovalAction, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    budget = _get_budget_or_404(db, budget_id)
+    budget = _get_budget_or_404(db, budget_id, current_user)
     role = budget_workflow.expected_role(budget)
     try:
         result = budget_workflow.reject_budget(db, budget, payload.actor_name, payload.comment)
@@ -237,8 +239,8 @@ def reject_budget(
 
 
 @router.get("/budgets/{budget_id}/versions", response_model=list[BudgetVersionOut])
-def list_budget_versions(budget_id: uuid.UUID, db: Session = Depends(get_db)):
-    _get_budget_or_404(db, budget_id)
+def list_budget_versions(budget_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    _get_budget_or_404(db, budget_id, current_user)
     return (
         db.query(BudgetVersion)
         .filter(BudgetVersion.budget_id == budget_id)
@@ -248,8 +250,8 @@ def list_budget_versions(budget_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @router.post("/budgets/{budget_id}/roll-forward", response_model=BudgetOut)
-def roll_forward_budget(budget_id: uuid.UUID, db: Session = Depends(get_db)):
-    budget = _get_budget_or_404(db, budget_id)
+def roll_forward_budget(budget_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    budget = _get_budget_or_404(db, budget_id, current_user)
     try:
         return rolling_budget.roll_forward(db, budget)
     except rolling_budget.RollForwardError as exc:
@@ -257,8 +259,8 @@ def roll_forward_budget(budget_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @router.get("/budgets/{budget_id}/flexible-variance", response_model=list[FlexibleVarianceRowOut])
-def get_flexible_variance(budget_id: uuid.UUID, db: Session = Depends(get_db)):
-    budget = _get_budget_or_404(db, budget_id)
+def get_flexible_variance(budget_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    budget = _get_budget_or_404(db, budget_id, current_user)
     if budget.type != "flexible":
         raise HTTPException(status_code=409, detail="Flexible variance only applies to 'flexible' budgets")
     rows = variance.flexible_budget_variance(db, budget)
@@ -266,8 +268,8 @@ def get_flexible_variance(budget_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @router.get("/budgets/{budget_id}/capital-appraisal", response_model=list[CapitalAppraisalRowOut])
-def get_capital_appraisal(budget_id: uuid.UUID, db: Session = Depends(get_db)):
-    budget = _get_budget_or_404(db, budget_id)
+def get_capital_appraisal(budget_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    budget = _get_budget_or_404(db, budget_id, current_user)
     if budget.type != "capital":
         raise HTTPException(status_code=409, detail="Capital appraisal only applies to 'capital' budgets")
     rows = capital_budget.capital_appraisal(db, budget)

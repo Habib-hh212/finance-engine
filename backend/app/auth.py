@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.models import User
+from app.models import CompanyMembership, User
 
 JWT_ALGORITHM = "HS256"
 _bearer_scheme = HTTPBearer(auto_error=False)
@@ -61,3 +61,40 @@ def get_current_user(
     if user is None:
         raise _credentials_exception()
     return user
+
+
+def _forbidden_exception() -> HTTPException:
+    return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don't have access to this company")
+
+
+def user_has_company_access(db: Session, user_id, company_id) -> bool:
+    return (
+        db.query(CompanyMembership)
+        .filter(CompanyMembership.user_id == user_id, CompanyMembership.company_id == company_id)
+        .first()
+        is not None
+    )
+
+
+def require_company_access(
+    company_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> uuid.UUID:
+    """Drop-in replacement for a plain `company_id: uuid.UUID` endpoint
+    parameter -- FastAPI parses `company_id` off the same query string
+    either way, so this only adds the membership check, nothing else about
+    the endpoint has to change. Every endpoint that takes company_id
+    directly should use this instead of the bare type annotation."""
+    if not user_has_company_access(db, current_user.id, company_id):
+        raise _forbidden_exception()
+    return company_id
+
+
+def require_resource_company_access(db: Session, current_user: User, company_id) -> None:
+    """The equivalent check for endpoints keyed by a resource id (a budget,
+    a journal entry, an asset...) instead of a direct company_id query
+    param -- call this from inside the shared _get_X_or_404 helper once
+    the resource (and therefore its company_id) has been loaded."""
+    if not user_has_company_access(db, current_user.id, company_id):
+        raise _forbidden_exception()
