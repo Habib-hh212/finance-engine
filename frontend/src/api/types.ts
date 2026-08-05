@@ -585,6 +585,82 @@ export interface GLLedger {
   lines: GLLedgerLine[];
 }
 
+export type DepreciationMethod = "straight_line" | "declining_balance" | "sum_of_years_digits";
+export type AssetStatus = "active" | "sold" | "scrapped" | "lost";
+export type DisposalType = "sale" | "scrap" | "lost";
+
+export interface AssetClass {
+  id: string;
+  name: string;
+  apc_gl_account_id: string;
+  depreciation_expense_gl_account_id: string;
+  accumulated_depreciation_gl_account_id: string;
+  disposal_gain_gl_account_id: string;
+  disposal_loss_gl_account_id: string;
+  default_depreciation_method: DepreciationMethod;
+  default_useful_life_years: number;
+  default_declining_balance_factor: number;
+}
+
+export interface Asset {
+  id: string;
+  asset_class_id: string;
+  asset_class_name: string;
+  cost_center_id: string | null;
+  code: string;
+  name: string;
+  acquisition_date: string;
+  capitalized_cost: number;
+  salvage_value: number;
+  useful_life_years: number;
+  depreciation_method: DepreciationMethod;
+  declining_balance_factor: number;
+  status: AssetStatus;
+  disposal_date: string | null;
+  disposal_proceeds: number | null;
+  disposal_reason: string | null;
+  accumulated_depreciation: number;
+  net_book_value: number;
+}
+
+export interface DepreciationRunRow {
+  asset_id: string;
+  asset_code: string;
+  depreciation_amount: number;
+  skipped_reason: string | null;
+}
+
+export interface DepreciationRun {
+  period: string;
+  rows: DepreciationRunRow[];
+  total_depreciation: number;
+}
+
+export interface AssetRegisterRow {
+  asset_id: string;
+  code: string;
+  name: string;
+  asset_class_name: string;
+  status: AssetStatus;
+  acquisition_date: string;
+  capitalized_cost: number;
+  accumulated_depreciation: number;
+  net_book_value: number;
+}
+
+export interface AssetRegister {
+  as_of: string;
+  rows: AssetRegisterRow[];
+  total_capitalized_cost: number;
+  total_accumulated_depreciation: number;
+  total_net_book_value: number;
+}
+
+export interface DisposeAssetResult {
+  asset: Asset;
+  gain_or_loss: number;
+}
+
 export interface CustomerChurnRisk {
   customer_id: string;
   name: string;

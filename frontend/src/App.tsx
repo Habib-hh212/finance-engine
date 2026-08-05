@@ -28,6 +28,7 @@ const ChartOfAccountsPage = lazy(() =>
   import("./pages/ChartOfAccountsPage").then((m) => ({ default: m.ChartOfAccountsPage })),
 );
 const TaxCodesPage = lazy(() => import("./pages/TaxCodesPage").then((m) => ({ default: m.TaxCodesPage })));
+const FixedAssetsPage = lazy(() => import("./pages/FixedAssetsPage").then((m) => ({ default: m.FixedAssetsPage })));
 
 function PageFallback() {
   return (
@@ -59,6 +60,7 @@ function App() {
               <Route path="/general-ledger" element={<BookkeepingPage />} />
               <Route path="/chart-of-accounts" element={<ChartOfAccountsPage />} />
               <Route path="/tax-codes" element={<TaxCodesPage />} />
+              <Route path="/fixed-assets" element={<FixedAssetsPage />} />
             </Routes>
           </Suspense>
         </Layout>

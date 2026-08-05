@@ -14,6 +14,7 @@ from app.api import (
     controlling,
     cost_centers,
     financial_statements,
+    fixed_assets,
     fx,
     insights,
     kpis,
@@ -73,6 +74,7 @@ app.include_router(marginal_costing.router, dependencies=_auth_dep)
 app.include_router(statement_forecast.router, dependencies=_auth_dep)
 app.include_router(scenarios.router, dependencies=_auth_dep)
 app.include_router(tax_codes.router, dependencies=_auth_dep)
+app.include_router(fixed_assets.router, dependencies=_auth_dep)
 
 
 @app.get("/health")
