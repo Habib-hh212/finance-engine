@@ -49,7 +49,13 @@ export interface SalesUploadResult {
 }
 
 export type GLCategory = "revenue" | "expense" | "asset" | "liability" | "equity";
-export type GLForecastRole = "cash" | "accounts_receivable" | "accounts_payable" | "tds_payable";
+export type GLForecastRole =
+  | "cash"
+  | "accounts_receivable"
+  | "accounts_payable"
+  | "tds_payable"
+  | "sales_discount"
+  | "purchase_discount";
 
 export interface GLAccount {
   id: string;
@@ -852,6 +858,10 @@ export interface CustomerInvoice {
   cgst_amount: number;
   sgst_amount: number;
   igst_amount: number;
+  discount_pct: number | null;
+  discount_days: number | null;
+  discount_taken_amount: number | null;
+  discount_taken_date: string | null;
   amount: number;
   currency: string;
   status: InvoiceStatus;
@@ -886,6 +896,10 @@ export interface VendorBill {
   cgst_amount: number;
   sgst_amount: number;
   igst_amount: number;
+  discount_pct: number | null;
+  discount_days: number | null;
+  discount_taken_amount: number | null;
+  discount_taken_date: string | null;
   amount: number;
   currency: string;
   status: InvoiceStatus;

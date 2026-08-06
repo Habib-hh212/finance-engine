@@ -20,12 +20,14 @@ from app.schemas.receivables_payables import (
     AgingRowOut,
     ApplyPaymentIn,
     ApplyReceiptIn,
+    ClearDocumentIn,
     CustomerCreate,
     CustomerInvoiceCreate,
     CustomerInvoiceOut,
     CustomerOut,
     CustomerReceiptCreate,
     CustomerReceiptOut,
+    TakeDiscountIn,
     VendorBillCreate,
     VendorBillOut,
     VendorCreate,
@@ -98,6 +100,10 @@ def _invoice_out(db: Session, invoice: CustomerInvoice) -> CustomerInvoiceOut:
         cgst_amount=float(invoice.cgst_amount or 0.0),
         sgst_amount=float(invoice.sgst_amount or 0.0),
         igst_amount=float(invoice.igst_amount or 0.0),
+        discount_pct=float(invoice.discount_pct) if invoice.discount_pct is not None else None,
+        discount_days=invoice.discount_days,
+        discount_taken_amount=float(invoice.discount_taken_amount) if invoice.discount_taken_amount is not None else None,
+        discount_taken_date=invoice.discount_taken_date,
         amount=float(invoice.amount),
         currency=invoice.currency,
         status=invoice.status,
@@ -168,6 +174,42 @@ def apply_customer_receipt(payload: ApplyReceiptIn, company_id: uuid.UUID = Depe
     return _invoice_out(db, invoice)
 
 
+@router.post("/customer-invoices/{invoice_id}/discount", response_model=CustomerInvoiceOut)
+def take_customer_invoice_discount(
+    invoice_id: uuid.UUID,
+    payload: TakeDiscountIn,
+    company_id: uuid.UUID = Depends(require_company_access),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    invoice = _get_or_404(db, CustomerInvoice, company_id, invoice_id, "Invoice")
+    try:
+        arap.take_customer_invoice_discount(db, company_id, invoice, payload.as_of_date)
+    except arap.ARAPError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    audit.record(db, company_id, "customer_invoice", invoice.id, "discount", current_user, f"Took early-payment discount on invoice {invoice.invoice_number}")
+    db.commit()
+    return _invoice_out(db, invoice)
+
+
+@router.post("/customer-invoices/{invoice_id}/clear", response_model=CustomerInvoiceOut)
+def clear_customer_invoice(
+    invoice_id: uuid.UUID,
+    payload: ClearDocumentIn,
+    company_id: uuid.UUID = Depends(require_company_access),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    invoice = _get_or_404(db, CustomerInvoice, company_id, invoice_id, "Invoice")
+    try:
+        arap.clear_customer_invoice(db, company_id, invoice, payload.cash_gl_account_id, payload.cleared_date, payload.take_discount)
+    except arap.ARAPError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    audit.record(db, company_id, "customer_invoice", invoice.id, "clear", current_user, f"Cleared invoice {invoice.invoice_number} in one step")
+    db.commit()
+    return _invoice_out(db, invoice)
+
+
 @router.get("/reports/ar-aging", response_model=AgingReportOut)
 def get_ar_aging(company_id: uuid.UUID = Depends(require_company_access), as_of: date = Query(...), db: Session = Depends(get_db)):
     rows = arap.ar_aging(db, company_id, as_of)
@@ -194,6 +236,10 @@ def _bill_out(db: Session, bill: VendorBill) -> VendorBillOut:
         cgst_amount=float(bill.cgst_amount or 0.0),
         sgst_amount=float(bill.sgst_amount or 0.0),
         igst_amount=float(bill.igst_amount or 0.0),
+        discount_pct=float(bill.discount_pct) if bill.discount_pct is not None else None,
+        discount_days=bill.discount_days,
+        discount_taken_amount=float(bill.discount_taken_amount) if bill.discount_taken_amount is not None else None,
+        discount_taken_date=bill.discount_taken_date,
         amount=float(bill.amount),
         currency=bill.currency,
         status=bill.status,
@@ -260,6 +306,42 @@ def apply_vendor_payment(payload: ApplyPaymentIn, company_id: uuid.UUID = Depend
     except arap.ARAPError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     audit.record(db, company_id, "vendor_payment", payment.id, "apply", current_user, f"Applied {payload.amount} of payment to bill {bill.bill_number}")
+    db.commit()
+    return _bill_out(db, bill)
+
+
+@router.post("/vendor-bills/{bill_id}/discount", response_model=VendorBillOut)
+def take_vendor_bill_discount(
+    bill_id: uuid.UUID,
+    payload: TakeDiscountIn,
+    company_id: uuid.UUID = Depends(require_company_access),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    bill = _get_or_404(db, VendorBill, company_id, bill_id, "Bill")
+    try:
+        arap.take_vendor_bill_discount(db, company_id, bill, payload.as_of_date)
+    except arap.ARAPError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    audit.record(db, company_id, "vendor_bill", bill.id, "discount", current_user, f"Took early-payment discount on bill {bill.bill_number}")
+    db.commit()
+    return _bill_out(db, bill)
+
+
+@router.post("/vendor-bills/{bill_id}/clear", response_model=VendorBillOut)
+def clear_vendor_bill(
+    bill_id: uuid.UUID,
+    payload: ClearDocumentIn,
+    company_id: uuid.UUID = Depends(require_company_access),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    bill = _get_or_404(db, VendorBill, company_id, bill_id, "Bill")
+    try:
+        arap.clear_vendor_bill(db, company_id, bill, payload.cash_gl_account_id, payload.cleared_date, payload.take_discount)
+    except arap.ARAPError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    audit.record(db, company_id, "vendor_bill", bill.id, "clear", current_user, f"Cleared bill {bill.bill_number} in one step")
     db.commit()
     return _bill_out(db, bill)
 

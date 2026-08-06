@@ -54,6 +54,14 @@ ADDITIVE_COLUMNS = [
     ("vendor_bills", "cgst_amount", "NUMERIC(18,2)"),
     ("vendor_bills", "sgst_amount", "NUMERIC(18,2)"),
     ("vendor_bills", "igst_amount", "NUMERIC(18,2)"),
+    ("customer_invoices", "discount_pct", "NUMERIC(5,2)"),
+    ("customer_invoices", "discount_days", "INTEGER"),
+    ("customer_invoices", "discount_taken_amount", "NUMERIC(18,2)"),
+    ("customer_invoices", "discount_taken_date", "DATE"),
+    ("vendor_bills", "discount_pct", "NUMERIC(5,2)"),
+    ("vendor_bills", "discount_days", "INTEGER"),
+    ("vendor_bills", "discount_taken_amount", "NUMERIC(18,2)"),
+    ("vendor_bills", "discount_taken_date", "DATE"),
 ]
 
 
