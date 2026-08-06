@@ -37,6 +37,7 @@ from app.models.sales import SalesActual, SalesForecast
 from app.models.scenario import Scenario
 from app.models.standard_costing import ProductionActual, StandardCost
 from app.models.tax_code import TAX_DIRECTIONS, TAX_TYPES, TaxCode, TaxDirection, TaxType
+from app.models.tds_section import TdsSection
 from app.models.user import User
 
 __all__ = [
@@ -92,4 +93,5 @@ __all__ = [
     "MatchType",
     "CompanyMembership",
     "PasswordResetToken",
+    "TdsSection",
 ]

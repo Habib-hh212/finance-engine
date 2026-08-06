@@ -30,6 +30,7 @@ from app.api import (
     standard_costing,
     statement_forecast,
     tax_codes,
+    tds,
 )
 from app.auth import get_current_user
 from app.database import Base, engine
@@ -84,6 +85,7 @@ app.include_router(accruals.router, dependencies=_auth_dep)
 app.include_router(bank_reconciliation.router, dependencies=_auth_dep)
 app.include_router(period_close.router, dependencies=_auth_dep)
 app.include_router(receivables_payables.router, dependencies=_auth_dep)
+app.include_router(tds.router, dependencies=_auth_dep)
 
 
 @app.get("/health")

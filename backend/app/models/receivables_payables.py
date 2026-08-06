@@ -98,6 +98,8 @@ class VendorBill(Base):
     due_date: Mapped[date] = mapped_column(Date, nullable=False)
     expense_gl_account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("gl_accounts.id"), nullable=False)
     tax_code_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("tax_codes.id"), nullable=True)
+    tds_section_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("tds_sections.id"), nullable=True)
+    tds_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
     amount: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD")
     status: Mapped[str] = mapped_column(String(20), nullable=False, default=InvoiceStatus.OPEN)

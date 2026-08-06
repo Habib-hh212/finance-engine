@@ -184,6 +184,8 @@ def _bill_out(db: Session, bill: VendorBill) -> VendorBillOut:
         due_date=bill.due_date,
         expense_gl_account_id=bill.expense_gl_account_id,
         tax_code_id=bill.tax_code_id,
+        tds_section_id=bill.tds_section_id,
+        tds_amount=float(bill.tds_amount or 0.0),
         amount=float(bill.amount),
         currency=bill.currency,
         status=bill.status,

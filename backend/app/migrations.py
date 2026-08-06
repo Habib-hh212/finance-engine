@@ -38,6 +38,8 @@ ADDITIVE_COLUMNS = [
     ("actual_lines", "journal_entry_line_id", "UUID"),
     ("journal_entry_lines", "tax_code_id", "UUID"),
     ("journal_entry_lines", "tax_amount", "NUMERIC(18,2)"),
+    ("vendor_bills", "tds_section_id", "UUID"),
+    ("vendor_bills", "tds_amount", "NUMERIC(18,2)"),
 ]
 
 

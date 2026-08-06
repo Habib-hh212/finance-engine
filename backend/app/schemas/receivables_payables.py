@@ -85,6 +85,7 @@ class VendorBillCreate(BaseModel):
     expense_gl_account_id: uuid.UUID
     net_amount: float
     tax_code_id: Optional[uuid.UUID] = None
+    tds_section_id: Optional[uuid.UUID] = None
     currency: str = "USD"
 
 
@@ -97,6 +98,8 @@ class VendorBillOut(BaseModel):
     due_date: date
     expense_gl_account_id: uuid.UUID
     tax_code_id: Optional[uuid.UUID]
+    tds_section_id: Optional[uuid.UUID]
+    tds_amount: float
     amount: float
     currency: str
     status: str
