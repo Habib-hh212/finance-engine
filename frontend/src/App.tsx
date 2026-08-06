@@ -39,6 +39,7 @@ const ReceivablesPayablesPage = lazy(() =>
 const BankReconciliationPage = lazy(() =>
   import("./pages/BankReconciliationPage").then((m) => ({ default: m.BankReconciliationPage })),
 );
+const PayrollPage = lazy(() => import("./pages/PayrollPage").then((m) => ({ default: m.PayrollPage })));
 
 function PageFallback() {
   return (
@@ -76,6 +77,7 @@ function AuthenticatedApp() {
               <Route path="/period-close" element={<PeriodClosePage />} />
               <Route path="/receivables-payables" element={<ReceivablesPayablesPage />} />
               <Route path="/bank-reconciliation" element={<BankReconciliationPage />} />
+              <Route path="/payroll" element={<PayrollPage />} />
             </Routes>
           </Suspense>
         </Layout>

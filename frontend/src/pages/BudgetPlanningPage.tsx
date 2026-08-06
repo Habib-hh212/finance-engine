@@ -192,8 +192,8 @@ export function BudgetPlanningPage() {
 
   const rolesForCategory = (category: GLCategory): GLForecastRole[] => {
     if (category === "asset") return ["cash", "accounts_receivable"];
-    if (category === "liability") return ["accounts_payable", "tds_payable"];
-    if (category === "expense") return ["sales_discount"];
+    if (category === "liability") return ["accounts_payable", "tds_payable", "pf_payable", "esi_payable", "professional_tax_payable"];
+    if (category === "expense") return ["sales_discount", "salary_expense"];
     if (category === "revenue") return ["purchase_discount"];
     return [];
   };

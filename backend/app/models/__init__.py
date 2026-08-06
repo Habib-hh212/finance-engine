@@ -22,6 +22,7 @@ from app.models.gst_rate import GST_DIRECTIONS, GstRate
 from app.models.journal_entry import JournalEntry, JournalEntryLine, JournalEntryStatus
 from app.models.marginal_costing import FixedCost
 from app.models.password_reset_token import PasswordResetToken
+from app.models.payroll import TAX_REGIMES, Employee, InvestmentDeclaration, PayrollRun, PayrollRunStatus, Payslip, TaxRegime
 from app.models.product import Customer, Product
 from app.models.receivables_payables import (
     INVOICE_STATUSES,
@@ -97,4 +98,11 @@ __all__ = [
     "TdsSection",
     "GstRate",
     "GST_DIRECTIONS",
+    "Employee",
+    "InvestmentDeclaration",
+    "PayrollRun",
+    "PayrollRunStatus",
+    "Payslip",
+    "TaxRegime",
+    "TAX_REGIMES",
 ]

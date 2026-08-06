@@ -22,6 +22,7 @@ from app.api import (
     insights,
     kpis,
     marginal_costing,
+    payroll,
     period_close,
     products,
     profitability,
@@ -88,6 +89,7 @@ app.include_router(period_close.router, dependencies=_auth_dep)
 app.include_router(receivables_payables.router, dependencies=_auth_dep)
 app.include_router(tds.router, dependencies=_auth_dep)
 app.include_router(gst.router, dependencies=_auth_dep)
+app.include_router(payroll.router, dependencies=_auth_dep)
 
 
 @app.get("/health")
