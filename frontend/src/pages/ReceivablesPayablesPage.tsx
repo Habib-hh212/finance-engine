@@ -19,6 +19,7 @@ import {
 import { useCompany } from "../context/CompanyContext";
 import { listGLAccounts } from "../api/budgets";
 import { listTaxCodes } from "../api/taxCodes";
+import { listTdsSections } from "../api/tds";
 import {
   applyCustomerReceipt,
   applyVendorPayment,
@@ -45,6 +46,7 @@ import type {
   GLAccount,
   InvoiceStatus,
   TaxCode,
+  TdsSection,
   VendorBill,
   VendorParty,
   VendorPayment,
@@ -75,6 +77,7 @@ export function ReceivablesPayablesPage() {
   const { company } = useCompany();
   const [glAccounts, setGlAccounts] = useState<GLAccount[]>([]);
   const [taxCodes, setTaxCodes] = useState<TaxCode[]>([]);
+  const [tdsSections, setTdsSections] = useState<TdsSection[]>([]);
   const [customers, setCustomers] = useState<CustomerParty[]>([]);
   const [vendors, setVendors] = useState<VendorParty[]>([]);
   const [invoices, setInvoices] = useState<CustomerInvoice[]>([]);
@@ -116,6 +119,7 @@ export function ReceivablesPayablesPage() {
   const [billExpenseAccount, setBillExpenseAccount] = useState("");
   const [billAmount, setBillAmount] = useState("");
   const [billTaxCode, setBillTaxCode] = useState("");
+  const [billTdsSection, setBillTdsSection] = useState("");
 
   // New payment
   const [pmVendor, setPmVendor] = useState("");
@@ -139,9 +143,10 @@ export function ReceivablesPayablesPage() {
     if (!company) return;
     setError(null);
     try {
-      const [accounts, codes, cust, vend, inv, rcpt, bl, pay] = await Promise.all([
+      const [accounts, codes, sections, cust, vend, inv, rcpt, bl, pay] = await Promise.all([
         listGLAccounts(company.id),
         listTaxCodes(company.id),
+        listTdsSections(company.id),
         listCustomers(company.id),
         listVendors(company.id),
         listCustomerInvoices(company.id),
@@ -151,6 +156,7 @@ export function ReceivablesPayablesPage() {
       ]);
       setGlAccounts(accounts);
       setTaxCodes(codes);
+      setTdsSections(sections);
       setCustomers(cust);
       setVendors(vend);
       setInvoices(inv);
@@ -268,10 +274,12 @@ export function ReceivablesPayablesPage() {
         expense_gl_account_id: billExpenseAccount,
         net_amount: Number(billAmount),
         tax_code_id: billTaxCode || undefined,
+        tds_section_id: billTdsSection || undefined,
       });
       setBillNumber("");
       setBillAmount("");
       setBillTaxCode("");
+      setBillTdsSection("");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create the bill");
@@ -591,6 +599,14 @@ export function ReceivablesPayablesPage() {
                 </MenuItem>
               ))}
             </TextField>
+            <TextField select label="TDS section" size="small" value={billTdsSection} onChange={(e) => setBillTdsSection(e.target.value)} sx={{ minWidth: 160 }}>
+              <MenuItem value="">— none —</MenuItem>
+              {tdsSections.filter((s) => s.is_active).map((s) => (
+                <MenuItem key={s.id} value={s.id}>
+                  {s.section_code} ({s.rate_pct}%)
+                </MenuItem>
+              ))}
+            </TextField>
             <Button variant="contained" onClick={handleCreateBill} disabled={!billVendor || !billNumber || !billExpenseAccount || !billAmount}>
               Create bill
             </Button>
@@ -603,6 +619,7 @@ export function ReceivablesPayablesPage() {
                   <TableCell>Number</TableCell>
                   <TableCell>Vendor</TableCell>
                   <TableCell>Due</TableCell>
+                  <TableCell align="right">TDS</TableCell>
                   <TableCell align="right">Amount</TableCell>
                   <TableCell align="right">Remaining</TableCell>
                   <TableCell>Status</TableCell>
@@ -614,6 +631,7 @@ export function ReceivablesPayablesPage() {
                     <TableCell>{b.bill_number}</TableCell>
                     <TableCell>{b.vendor_name}</TableCell>
                     <TableCell>{b.due_date}</TableCell>
+                    <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{b.tds_amount > 0 ? fmt(b.tds_amount) : "—"}</TableCell>
                     <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(b.amount)}</TableCell>
                     <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(b.remaining_balance)}</TableCell>
                     <TableCell>
@@ -623,7 +641,7 @@ export function ReceivablesPayablesPage() {
                 ))}
                 {bills.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6}>
+                    <TableCell colSpan={7}>
                       <Typography variant="body2" color="text.secondary">
                         No bills yet.
                       </Typography>

@@ -21,6 +21,7 @@ from app.models import (
     CustomerReceiptApplication,
     GLAccount,
     TaxCode,
+    TdsSection,
     Vendor,
     VendorBill,
     VendorPayment,
@@ -28,6 +29,7 @@ from app.models import (
 )
 from app.models.receivables_payables import InvoiceStatus
 from app.services import bookkeeping
+from app.services import tds as tds_service
 
 TOLERANCE = 0.01
 
@@ -196,6 +198,7 @@ def create_vendor_bill(
     expense_gl_account_id,
     net_amount: float,
     tax_code_id=None,
+    tds_section_id=None,
     currency: str = "USD",
 ) -> VendorBill:
     if net_amount <= 0:
@@ -212,14 +215,30 @@ def create_vendor_bill(
             raise ARAPError("Tax code doesn't belong to this company.")
     gross_amount = round(net_amount + _tax_amount(tax_code, net_amount), 2)
 
+    tds_section = None
+    tds_deducted = 0.0
+    if tds_section_id is not None:
+        tds_section = db.get(TdsSection, tds_section_id)
+        if tds_section is None or tds_section.company_id != company_id:
+            raise ARAPError("TDS section doesn't belong to this company.")
+        tds_deducted = tds_service.tds_amount(tds_section, net_amount)
+
+    # TDS reduces what's actually owed to the vendor, not the expense
+    # booked -- the deducted amount moves to a TDS payable liability
+    # (remitted to the government) instead of the vendor's payable.
+    payable_amount = round(gross_amount - tds_deducted, 2)
+
+    lines = [bookkeeping.LineInput(gl_account_id=expense_gl_account_id, debit_amount=net_amount, tax_code_id=tax_code_id)]
+    if tds_deducted > 0:
+        tds_account = _control_account(db, company_id, "tds_payable", "TDS Payable")
+        lines.append(bookkeeping.LineInput(gl_account_id=tds_account.id, credit_amount=tds_deducted))
+    lines.append(bookkeeping.LineInput(gl_account_id=ap_account.id, credit_amount=payable_amount))
+
     entry = bookkeeping.create_journal_entry(
         db,
         company_id,
         bill_date,
-        [
-            bookkeeping.LineInput(gl_account_id=expense_gl_account_id, debit_amount=net_amount, tax_code_id=tax_code_id),
-            bookkeeping.LineInput(gl_account_id=ap_account.id, credit_amount=gross_amount),
-        ],
+        lines,
         reference=f"Bill {bill_number}",
         description=f"Bill {bill_number} from {vendor.name}",
         currency=currency,
@@ -234,7 +253,9 @@ def create_vendor_bill(
         due_date=due_date,
         expense_gl_account_id=expense_gl_account_id,
         tax_code_id=tax_code_id,
-        amount=gross_amount,
+        tds_section_id=tds_section_id,
+        tds_amount=tds_deducted,
+        amount=payable_amount,
         currency=currency,
         status=InvoiceStatus.OPEN,
         journal_entry_id=entry.id,

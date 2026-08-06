@@ -48,7 +48,7 @@ export interface SalesUploadResult {
 }
 
 export type GLCategory = "revenue" | "expense" | "asset" | "liability" | "equity";
-export type GLForecastRole = "cash" | "accounts_receivable" | "accounts_payable";
+export type GLForecastRole = "cash" | "accounts_receivable" | "accounts_payable" | "tds_payable";
 
 export interface GLAccount {
   id: string;
@@ -562,6 +562,38 @@ export interface TaxReport {
   net_tax_payable: number;
 }
 
+export interface TdsSection {
+  id: string;
+  section_code: string;
+  description: string;
+  rate_pct: number;
+  is_active: boolean;
+}
+
+export interface TdsSectionSummaryRow {
+  tds_section_id: string;
+  section_code: string;
+  description: string;
+  rate_pct: number;
+  gross_amount: number;
+  tds_amount: number;
+}
+
+export interface TdsDeducteeSummaryRow {
+  vendor_id: string;
+  vendor_name: string;
+  gross_amount: number;
+  tds_amount: number;
+}
+
+export interface TdsSummary {
+  start: string;
+  end: string;
+  section_rows: TdsSectionSummaryRow[];
+  deductee_rows: TdsDeducteeSummaryRow[];
+  total_tds: number;
+}
+
 export interface GLLedgerLine {
   journal_entry_id: string;
   journal_entry_line_id: string;
@@ -767,6 +799,8 @@ export interface VendorBill {
   due_date: string;
   expense_gl_account_id: string;
   tax_code_id: string | null;
+  tds_section_id: string | null;
+  tds_amount: number;
   amount: number;
   currency: string;
   status: InvoiceStatus;

@@ -35,6 +35,7 @@ export interface VendorBillInput {
   expense_gl_account_id: string;
   net_amount: number;
   tax_code_id?: string;
+  tds_section_id?: string;
   currency?: string;
 }
 

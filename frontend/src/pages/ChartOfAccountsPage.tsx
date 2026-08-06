@@ -32,7 +32,7 @@ const CATEGORY_COLOR: Record<GLCategory, "info" | "warning" | "secondary" | "suc
 
 function rolesForCategory(category: GLCategory): GLForecastRole[] {
   if (category === "asset") return ["cash", "accounts_receivable"];
-  if (category === "liability") return ["accounts_payable"];
+  if (category === "liability") return ["accounts_payable", "tds_payable"];
   return [];
 }
 

@@ -17,6 +17,7 @@ import DomainIcon from "@mui/icons-material/Domain";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import PercentIcon from "@mui/icons-material/Percent";
 import {
   AppBar,
   Box,
@@ -64,6 +65,7 @@ const NAV_GROUPS: { heading: string | null; items: { to: string; label: string; 
       { to: "/general-ledger", label: "Bookkeeping", icon: <MenuBookIcon /> },
       { to: "/chart-of-accounts", label: "Chart of Accounts", icon: <ListAltIcon /> },
       { to: "/tax-codes", label: "Tax Codes (VAT/GST)", icon: <ReceiptLongIcon /> },
+      { to: "/tds", label: "TDS (India)", icon: <PercentIcon /> },
       { to: "/fixed-assets", label: "Fixed Assets", icon: <DomainIcon /> },
       { to: "/period-close", label: "Period Close", icon: <EventAvailableIcon /> },
       { to: "/receivables-payables", label: "Receivables & Payables", icon: <RequestQuoteIcon /> },
