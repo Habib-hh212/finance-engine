@@ -7,20 +7,28 @@ from pydantic import BaseModel
 
 class VendorCreate(BaseModel):
     name: str
+    state: Optional[str] = None
+    gstin: Optional[str] = None
 
 
 class VendorOut(BaseModel):
     id: uuid.UUID
     name: str
+    state: Optional[str] = None
+    gstin: Optional[str] = None
 
 
 class CustomerCreate(BaseModel):
     name: str
+    state: Optional[str] = None
+    gstin: Optional[str] = None
 
 
 class CustomerOut(BaseModel):
     id: uuid.UUID
     name: str
+    state: Optional[str] = None
+    gstin: Optional[str] = None
 
 
 class CustomerInvoiceCreate(BaseModel):
@@ -31,6 +39,7 @@ class CustomerInvoiceCreate(BaseModel):
     revenue_gl_account_id: uuid.UUID
     net_amount: float
     tax_code_id: Optional[uuid.UUID] = None
+    gst_rate_id: Optional[uuid.UUID] = None
     currency: str = "USD"
 
 
@@ -43,6 +52,10 @@ class CustomerInvoiceOut(BaseModel):
     due_date: date
     revenue_gl_account_id: uuid.UUID
     tax_code_id: Optional[uuid.UUID]
+    gst_rate_id: Optional[uuid.UUID]
+    cgst_amount: float
+    sgst_amount: float
+    igst_amount: float
     amount: float
     currency: str
     status: str
@@ -86,6 +99,7 @@ class VendorBillCreate(BaseModel):
     net_amount: float
     tax_code_id: Optional[uuid.UUID] = None
     tds_section_id: Optional[uuid.UUID] = None
+    gst_rate_id: Optional[uuid.UUID] = None
     currency: str = "USD"
 
 
@@ -100,6 +114,10 @@ class VendorBillOut(BaseModel):
     tax_code_id: Optional[uuid.UUID]
     tds_section_id: Optional[uuid.UUID]
     tds_amount: float
+    gst_rate_id: Optional[uuid.UUID]
+    cgst_amount: float
+    sgst_amount: float
+    igst_amount: float
     amount: float
     currency: str
     status: str

@@ -40,6 +40,20 @@ ADDITIVE_COLUMNS = [
     ("journal_entry_lines", "tax_amount", "NUMERIC(18,2)"),
     ("vendor_bills", "tds_section_id", "UUID"),
     ("vendor_bills", "tds_amount", "NUMERIC(18,2)"),
+    ("companies", "home_state", "VARCHAR(100)"),
+    ("customers", "state", "VARCHAR(100)"),
+    ("customers", "gstin", "VARCHAR(15)"),
+    ("vendors", "state", "VARCHAR(100)"),
+    ("vendors", "gstin", "VARCHAR(15)"),
+    ("gl_accounts", "hsn_sac_code", "VARCHAR(20)"),
+    ("customer_invoices", "gst_rate_id", "UUID"),
+    ("customer_invoices", "cgst_amount", "NUMERIC(18,2)"),
+    ("customer_invoices", "sgst_amount", "NUMERIC(18,2)"),
+    ("customer_invoices", "igst_amount", "NUMERIC(18,2)"),
+    ("vendor_bills", "gst_rate_id", "UUID"),
+    ("vendor_bills", "cgst_amount", "NUMERIC(18,2)"),
+    ("vendor_bills", "sgst_amount", "NUMERIC(18,2)"),
+    ("vendor_bills", "igst_amount", "NUMERIC(18,2)"),
 ]
 
 

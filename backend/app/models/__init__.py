@@ -18,6 +18,7 @@ from app.models.fixed_asset import (
     DepreciationEntry,
     DepreciationMethod,
 )
+from app.models.gst_rate import GST_DIRECTIONS, GstRate
 from app.models.journal_entry import JournalEntry, JournalEntryLine, JournalEntryStatus
 from app.models.marginal_costing import FixedCost
 from app.models.password_reset_token import PasswordResetToken
@@ -94,4 +95,6 @@ __all__ = [
     "CompanyMembership",
     "PasswordResetToken",
     "TdsSection",
+    "GstRate",
+    "GST_DIRECTIONS",
 ]

@@ -12,10 +12,12 @@ class GLAccountCreate(BaseModel):
     name: str
     category: Literal["revenue", "expense", "asset", "liability", "equity"]
     forecast_role: Optional[GLForecastRole] = None
+    hsn_sac_code: Optional[str] = None
 
 
 class GLAccountUpdate(BaseModel):
     forecast_role: Optional[GLForecastRole] = None
+    hsn_sac_code: Optional[str] = None
 
 
 class GLAccountOut(BaseModel):
@@ -24,6 +26,7 @@ class GLAccountOut(BaseModel):
     name: str
     category: str
     forecast_role: Optional[str] = None
+    hsn_sac_code: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

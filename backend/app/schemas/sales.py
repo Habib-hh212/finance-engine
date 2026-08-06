@@ -70,11 +70,17 @@ class MonteCarloResponse(BaseModel):
 class CompanyCreate(BaseModel):
     name: str
     base_currency: str = "USD"
+    home_state: Optional[str] = None
+
+
+class CompanyUpdate(BaseModel):
+    home_state: Optional[str] = None
 
 
 class CompanyOut(BaseModel):
     id: uuid.UUID
     name: str
     base_currency: str
+    home_state: Optional[str] = None
 
     model_config = {"from_attributes": True}

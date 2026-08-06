@@ -45,6 +45,10 @@ class Vendor(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    # See Customer.state/gstin -- same place-of-supply comparison, on the
+    # purchase side (decides whether input ITC is CGST+SGST or IGST).
+    state: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    gstin: Mapped[Optional[str]] = mapped_column(String(15), nullable=True)
 
 
 class CustomerInvoice(Base):
@@ -58,6 +62,14 @@ class CustomerInvoice(Base):
     due_date: Mapped[date] = mapped_column(Date, nullable=False)
     revenue_gl_account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("gl_accounts.id"), nullable=False)
     tax_code_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("tax_codes.id"), nullable=True)
+    # India GST path (mutually exclusive with tax_code_id in practice --
+    # a company uses one tax system or the other): the rate applied and
+    # its CGST/SGST/IGST split, decided by comparing the customer's state
+    # to the company's home_state at posting time.
+    gst_rate_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("gst_rates.id"), nullable=True)
+    cgst_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
+    sgst_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
+    igst_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
     amount: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD")
     status: Mapped[str] = mapped_column(String(20), nullable=False, default=InvoiceStatus.OPEN)
@@ -100,6 +112,12 @@ class VendorBill(Base):
     tax_code_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("tax_codes.id"), nullable=True)
     tds_section_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("tds_sections.id"), nullable=True)
     tds_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
+    # See CustomerInvoice.gst_rate_id -- same India GST path, on the
+    # purchase side (input CGST/SGST/IGST, i.e. ITC).
+    gst_rate_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("gst_rates.id"), nullable=True)
+    cgst_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
+    sgst_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
+    igst_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
     amount: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD")
     status: Mapped[str] = mapped_column(String(20), nullable=False, default=InvoiceStatus.OPEN)

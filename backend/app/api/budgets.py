@@ -55,7 +55,9 @@ def update_gl_account(
     if account is None:
         raise HTTPException(status_code=404, detail="GL account not found")
     require_resource_company_access(db, current_user, account.company_id)
-    account.forecast_role = payload.forecast_role
+    changes = payload.model_dump(exclude_unset=True)
+    for field, value in changes.items():
+        setattr(account, field, value)
     audit.record(
         db,
         account.company_id,
@@ -63,7 +65,7 @@ def update_gl_account(
         account.id,
         "update",
         current_user,
-        f"Set forecast role of {account.code} {account.name} to {payload.forecast_role or 'none'}",
+        f"Updated GL account {account.code} {account.name} ({', '.join(changes.keys()) or 'no changes'})",
     )
     db.commit()
     db.refresh(account)

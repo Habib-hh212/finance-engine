@@ -30,6 +30,7 @@ const ChartOfAccountsPage = lazy(() =>
 );
 const TaxCodesPage = lazy(() => import("./pages/TaxCodesPage").then((m) => ({ default: m.TaxCodesPage })));
 const TdsPage = lazy(() => import("./pages/TdsPage").then((m) => ({ default: m.TdsPage })));
+const GstReturnsPage = lazy(() => import("./pages/GstReturnsPage").then((m) => ({ default: m.GstReturnsPage })));
 const FixedAssetsPage = lazy(() => import("./pages/FixedAssetsPage").then((m) => ({ default: m.FixedAssetsPage })));
 const PeriodClosePage = lazy(() => import("./pages/PeriodClosePage").then((m) => ({ default: m.PeriodClosePage })));
 const ReceivablesPayablesPage = lazy(() =>
@@ -70,6 +71,7 @@ function AuthenticatedApp() {
               <Route path="/chart-of-accounts" element={<ChartOfAccountsPage />} />
               <Route path="/tax-codes" element={<TaxCodesPage />} />
               <Route path="/tds" element={<TdsPage />} />
+              <Route path="/gst-returns" element={<GstReturnsPage />} />
               <Route path="/fixed-assets" element={<FixedAssetsPage />} />
               <Route path="/period-close" element={<PeriodClosePage />} />
               <Route path="/receivables-payables" element={<ReceivablesPayablesPage />} />

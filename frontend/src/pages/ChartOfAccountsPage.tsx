@@ -44,6 +44,7 @@ export function ChartOfAccountsPage() {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [category, setCategory] = useState<GLCategory>("asset");
+  const [hsnCode, setHsnCode] = useState("");
 
   const load = async () => {
     if (!company) return;
@@ -64,9 +65,10 @@ export function ChartOfAccountsPage() {
     if (!company || !code || !name) return;
     setError(null);
     try {
-      await createGLAccount(company.id, code, name, category);
+      await createGLAccount(company.id, code, name, category, undefined, hsnCode || undefined);
       setCode("");
       setName("");
+      setHsnCode("");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create the account");
@@ -76,7 +78,17 @@ export function ChartOfAccountsPage() {
   const handleChangeRole = async (accountId: string, role: GLForecastRole | "") => {
     setError(null);
     try {
-      await updateGLAccount(accountId, role || null);
+      await updateGLAccount(accountId, { forecast_role: role || null });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update the account");
+    }
+  };
+
+  const handleChangeHsn = async (accountId: string, hsn: string) => {
+    setError(null);
+    try {
+      await updateGLAccount(accountId, { hsn_sac_code: hsn || null });
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update the account");
@@ -119,6 +131,7 @@ export function ChartOfAccountsPage() {
                 </MenuItem>
               ))}
             </TextField>
+            <TextField label="HSN/SAC (optional)" size="small" value={hsnCode} onChange={(e) => setHsnCode(e.target.value)} sx={{ width: 160 }} />
             <Button variant="contained" onClick={handleCreate} disabled={!code || !name}>
               Add account
             </Button>
@@ -141,6 +154,7 @@ export function ChartOfAccountsPage() {
                   <TableCell>Code</TableCell>
                   <TableCell>Name</TableCell>
                   <TableCell>Forecast Role</TableCell>
+                  <TableCell>HSN/SAC</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -175,12 +189,24 @@ export function ChartOfAccountsPage() {
                           </Typography>
                         )}
                       </TableCell>
+                      <TableCell sx={{ minWidth: 140 }}>
+                        <TextField
+                          key={a.id}
+                          size="small"
+                          fullWidth
+                          defaultValue={a.hsn_sac_code ?? ""}
+                          placeholder="HSN/SAC"
+                          onBlur={(e) => {
+                            if (e.target.value !== (a.hsn_sac_code ?? "")) handleChangeHsn(a.id, e.target.value);
+                          }}
+                        />
+                      </TableCell>
                     </TableRow>
                   );
                 })}
                 {rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={3}>
+                    <TableCell colSpan={4}>
                       <Typography variant="body2" color="text.secondary">
                         No {cat} accounts yet.
                       </Typography>

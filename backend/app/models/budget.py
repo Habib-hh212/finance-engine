@@ -45,6 +45,10 @@ class GLAccount(Base):
     # GL_FORECAST_ROLES. None for accounts with no special forecasting
     # role (carried forward flat in the forecast rather than projected).
     forecast_role: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    # India GST HSN (goods) / SAC (services) classification code for
+    # whatever this account represents -- feeds the HSN-wise summary
+    # section of GSTR-1. Optional; irrelevant outside GST reporting.
+    hsn_sac_code: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
 
 
 # Budget.type mixes "what it covers" (revenue/expense/master) with "how it's
