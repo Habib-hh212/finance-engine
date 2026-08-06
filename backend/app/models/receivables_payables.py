@@ -70,6 +70,15 @@ class CustomerInvoice(Base):
     cgst_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
     sgst_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
     igst_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
+    # Early-payment terms, e.g. "2/10 Net 30" = discount_pct=2,
+    # discount_days=10. discount_taken_amount/date are set once the
+    # discount is actually claimed (see take_customer_invoice_discount) --
+    # null until then, since not every invoice paid within the window
+    # necessarily has the discount applied.
+    discount_pct: Mapped[Optional[float]] = mapped_column(Numeric(5, 2), nullable=True)
+    discount_days: Mapped[Optional[int]] = mapped_column(nullable=True)
+    discount_taken_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
+    discount_taken_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     amount: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD")
     status: Mapped[str] = mapped_column(String(20), nullable=False, default=InvoiceStatus.OPEN)
@@ -118,6 +127,13 @@ class VendorBill(Base):
     cgst_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
     sgst_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
     igst_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
+    # See CustomerInvoice.discount_pct/discount_days -- same early-payment
+    # terms, on the purchase side (a discount the vendor offers us for
+    # paying early).
+    discount_pct: Mapped[Optional[float]] = mapped_column(Numeric(5, 2), nullable=True)
+    discount_days: Mapped[Optional[int]] = mapped_column(nullable=True)
+    discount_taken_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
+    discount_taken_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     amount: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD")
     status: Mapped[str] = mapped_column(String(20), nullable=False, default=InvoiceStatus.OPEN)

@@ -40,6 +40,8 @@ class CustomerInvoiceCreate(BaseModel):
     net_amount: float
     tax_code_id: Optional[uuid.UUID] = None
     gst_rate_id: Optional[uuid.UUID] = None
+    discount_pct: Optional[float] = None
+    discount_days: Optional[int] = None
     currency: str = "USD"
 
 
@@ -56,11 +58,25 @@ class CustomerInvoiceOut(BaseModel):
     cgst_amount: float
     sgst_amount: float
     igst_amount: float
+    discount_pct: Optional[float]
+    discount_days: Optional[int]
+    discount_taken_amount: Optional[float]
+    discount_taken_date: Optional[date]
     amount: float
     currency: str
     status: str
     remaining_balance: float
     journal_entry_id: uuid.UUID
+
+
+class ClearDocumentIn(BaseModel):
+    cash_gl_account_id: uuid.UUID
+    cleared_date: date
+    take_discount: bool = False
+
+
+class TakeDiscountIn(BaseModel):
+    as_of_date: date
 
 
 class CustomerReceiptCreate(BaseModel):
@@ -100,6 +116,8 @@ class VendorBillCreate(BaseModel):
     tax_code_id: Optional[uuid.UUID] = None
     tds_section_id: Optional[uuid.UUID] = None
     gst_rate_id: Optional[uuid.UUID] = None
+    discount_pct: Optional[float] = None
+    discount_days: Optional[int] = None
     currency: str = "USD"
 
 
@@ -118,6 +136,10 @@ class VendorBillOut(BaseModel):
     cgst_amount: float
     sgst_amount: float
     igst_amount: float
+    discount_pct: Optional[float]
+    discount_days: Optional[int]
+    discount_taken_amount: Optional[float]
+    discount_taken_date: Optional[date]
     amount: float
     currency: str
     status: str

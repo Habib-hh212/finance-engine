@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   Alert,
   Button,
   Card,
   CardContent,
+  Checkbox,
   Chip,
+  FormControlLabel,
   MenuItem,
   Stack,
   Table,
@@ -24,6 +26,8 @@ import { listGstRates } from "../api/gst";
 import {
   applyCustomerReceipt,
   applyVendorPayment,
+  clearCustomerInvoice,
+  clearVendorBill,
   createCustomer,
   createCustomerInvoice,
   createCustomerReceipt,
@@ -106,6 +110,14 @@ export function ReceivablesPayablesPage() {
   const [invAmount, setInvAmount] = useState("");
   const [invTaxCode, setInvTaxCode] = useState("");
   const [invGstRate, setInvGstRate] = useState("");
+  const [invDiscountPct, setInvDiscountPct] = useState("");
+  const [invDiscountDays, setInvDiscountDays] = useState("");
+
+  // Clear invoice (one-click settle)
+  const [clearingInvoiceId, setClearingInvoiceId] = useState<string | null>(null);
+  const [clearInvoiceCashAccount, setClearInvoiceCashAccount] = useState("");
+  const [clearInvoiceDate, setClearInvoiceDate] = useState(todayValue());
+  const [clearInvoiceTakeDiscount, setClearInvoiceTakeDiscount] = useState(false);
 
   // New receipt
   const [rcCustomer, setRcCustomer] = useState("");
@@ -129,6 +141,14 @@ export function ReceivablesPayablesPage() {
   const [billTaxCode, setBillTaxCode] = useState("");
   const [billTdsSection, setBillTdsSection] = useState("");
   const [billGstRate, setBillGstRate] = useState("");
+  const [billDiscountPct, setBillDiscountPct] = useState("");
+  const [billDiscountDays, setBillDiscountDays] = useState("");
+
+  // Clear bill (one-click settle)
+  const [clearingBillId, setClearingBillId] = useState<string | null>(null);
+  const [clearBillCashAccount, setClearBillCashAccount] = useState("");
+  const [clearBillDate, setClearBillDate] = useState(todayValue());
+  const [clearBillTakeDiscount, setClearBillTakeDiscount] = useState(false);
 
   // New payment
   const [pmVendor, setPmVendor] = useState("");
@@ -241,14 +261,32 @@ export function ReceivablesPayablesPage() {
         net_amount: Number(invAmount),
         tax_code_id: invTaxCode || undefined,
         gst_rate_id: invGstRate || undefined,
+        discount_pct: invDiscountPct ? Number(invDiscountPct) : undefined,
+        discount_days: invDiscountDays ? Number(invDiscountDays) : undefined,
       });
       setInvNumber("");
       setInvAmount("");
       setInvTaxCode("");
       setInvGstRate("");
+      setInvDiscountPct("");
+      setInvDiscountDays("");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create the invoice");
+    }
+  };
+
+  const handleClearInvoice = async (invoiceId: string) => {
+    if (!company || !clearInvoiceCashAccount) return;
+    setError(null);
+    try {
+      await clearCustomerInvoice(company.id, invoiceId, clearInvoiceCashAccount, clearInvoiceDate, clearInvoiceTakeDiscount);
+      setClearingInvoiceId(null);
+      setClearInvoiceCashAccount("");
+      setClearInvoiceTakeDiscount(false);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to clear the invoice");
     }
   };
 
@@ -293,15 +331,33 @@ export function ReceivablesPayablesPage() {
         tax_code_id: billTaxCode || undefined,
         tds_section_id: billTdsSection || undefined,
         gst_rate_id: billGstRate || undefined,
+        discount_pct: billDiscountPct ? Number(billDiscountPct) : undefined,
+        discount_days: billDiscountDays ? Number(billDiscountDays) : undefined,
       });
       setBillNumber("");
       setBillAmount("");
       setBillTaxCode("");
       setBillTdsSection("");
       setBillGstRate("");
+      setBillDiscountPct("");
+      setBillDiscountDays("");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create the bill");
+    }
+  };
+
+  const handleClearBill = async (billId: string) => {
+    if (!company || !clearBillCashAccount) return;
+    setError(null);
+    try {
+      await clearVendorBill(company.id, billId, clearBillCashAccount, clearBillDate, clearBillTakeDiscount);
+      setClearingBillId(null);
+      setClearBillCashAccount("");
+      setClearBillTakeDiscount(false);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to clear the bill");
     }
   };
 
@@ -414,6 +470,8 @@ export function ReceivablesPayablesPage() {
                 </MenuItem>
               ))}
             </TextField>
+            <TextField label="Discount %" type="number" size="small" value={invDiscountPct} onChange={(e) => setInvDiscountPct(e.target.value)} sx={{ width: 110 }} />
+            <TextField label="Discount days" type="number" size="small" value={invDiscountDays} onChange={(e) => setInvDiscountDays(e.target.value)} sx={{ width: 130 }} />
             <Button variant="contained" onClick={handleCreateInvoice} disabled={!invCustomer || !invNumber || !invRevenueAccount || !invAmount}>
               Create invoice
             </Button>
@@ -429,24 +487,84 @@ export function ReceivablesPayablesPage() {
                   <TableCell align="right">Amount</TableCell>
                   <TableCell align="right">Remaining</TableCell>
                   <TableCell>Status</TableCell>
+                  <TableCell />
                 </TableRow>
               </TableHead>
               <TableBody>
-                {invoices.map((i) => (
-                  <TableRow key={i.id}>
-                    <TableCell>{i.invoice_number}</TableCell>
-                    <TableCell>{i.customer_name}</TableCell>
-                    <TableCell>{i.due_date}</TableCell>
-                    <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(i.amount)}</TableCell>
-                    <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(i.remaining_balance)}</TableCell>
-                    <TableCell>
-                      <Chip size="small" label={i.status.replace("_", " ")} color={STATUS_COLOR[i.status]} />
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {invoices.map((i) => {
+                  const isOpen = i.status === "open" || i.status === "partially_paid";
+                  const discountEligible =
+                    i.discount_pct != null && i.discount_days != null && i.discount_taken_amount == null && new Date() <= new Date(new Date(i.invoice_date).getTime() + i.discount_days * 86400000);
+                  return (
+                    <Fragment key={i.id}>
+                      <TableRow>
+                        <TableCell>{i.invoice_number}</TableCell>
+                        <TableCell>{i.customer_name}</TableCell>
+                        <TableCell>{i.due_date}</TableCell>
+                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(i.amount)}</TableCell>
+                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(i.remaining_balance)}</TableCell>
+                        <TableCell>
+                          <Chip size="small" label={i.status.replace("_", " ")} color={STATUS_COLOR[i.status]} />
+                          {i.discount_taken_amount != null && (
+                            <Chip size="small" label={`discount ${fmt(i.discount_taken_amount)}`} variant="outlined" sx={{ ml: 0.5 }} />
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {isOpen && (
+                            <Button
+                              size="small"
+                              onClick={() => {
+                                setClearingInvoiceId(clearingInvoiceId === i.id ? null : i.id);
+                                setClearInvoiceDate(todayValue());
+                                setClearInvoiceTakeDiscount(false);
+                              }}
+                            >
+                              Clear
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                      {clearingInvoiceId === i.id && (
+                        <TableRow>
+                          <TableCell colSpan={7} sx={{ bgcolor: "action.hover" }}>
+                            <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", alignItems: "center", py: 1 }}>
+                              <TextField select label="Cash account" size="small" value={clearInvoiceCashAccount} onChange={(e) => setClearInvoiceCashAccount(e.target.value)} sx={{ minWidth: 170 }}>
+                                {glAccounts.map((g) => (
+                                  <MenuItem key={g.id} value={g.id}>
+                                    {g.code} {g.name}
+                                  </MenuItem>
+                                ))}
+                              </TextField>
+                              <TextField
+                                label="Date"
+                                type="date"
+                                size="small"
+                                value={clearInvoiceDate}
+                                onChange={(e) => setClearInvoiceDate(e.target.value)}
+                                slotProps={{ inputLabel: { shrink: true } }}
+                              />
+                              {discountEligible && (
+                                <FormControlLabel
+                                  control={<Checkbox size="small" checked={clearInvoiceTakeDiscount} onChange={(e) => setClearInvoiceTakeDiscount(e.target.checked)} />}
+                                  label={`Take ${i.discount_pct}% discount`}
+                                />
+                              )}
+                              <Button size="small" variant="contained" onClick={() => handleClearInvoice(i.id)} disabled={!clearInvoiceCashAccount}>
+                                Confirm clear
+                              </Button>
+                              <Button size="small" onClick={() => setClearingInvoiceId(null)}>
+                                Cancel
+                              </Button>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
+                  );
+                })}
                 {invoices.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6}>
+                    <TableCell colSpan={7}>
                       <Typography variant="body2" color="text.secondary">
                         No invoices yet.
                       </Typography>
@@ -646,6 +764,8 @@ export function ReceivablesPayablesPage() {
                 </MenuItem>
               ))}
             </TextField>
+            <TextField label="Discount %" type="number" size="small" value={billDiscountPct} onChange={(e) => setBillDiscountPct(e.target.value)} sx={{ width: 110 }} />
+            <TextField label="Discount days" type="number" size="small" value={billDiscountDays} onChange={(e) => setBillDiscountDays(e.target.value)} sx={{ width: 130 }} />
             <Button variant="contained" onClick={handleCreateBill} disabled={!billVendor || !billNumber || !billExpenseAccount || !billAmount}>
               Create bill
             </Button>
@@ -662,25 +782,85 @@ export function ReceivablesPayablesPage() {
                   <TableCell align="right">Amount</TableCell>
                   <TableCell align="right">Remaining</TableCell>
                   <TableCell>Status</TableCell>
+                  <TableCell />
                 </TableRow>
               </TableHead>
               <TableBody>
-                {bills.map((b) => (
-                  <TableRow key={b.id}>
-                    <TableCell>{b.bill_number}</TableCell>
-                    <TableCell>{b.vendor_name}</TableCell>
-                    <TableCell>{b.due_date}</TableCell>
-                    <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{b.tds_amount > 0 ? fmt(b.tds_amount) : "—"}</TableCell>
-                    <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(b.amount)}</TableCell>
-                    <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(b.remaining_balance)}</TableCell>
-                    <TableCell>
-                      <Chip size="small" label={b.status.replace("_", " ")} color={STATUS_COLOR[b.status]} />
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {bills.map((b) => {
+                  const isOpen = b.status === "open" || b.status === "partially_paid";
+                  const discountEligible =
+                    b.discount_pct != null && b.discount_days != null && b.discount_taken_amount == null && new Date() <= new Date(new Date(b.bill_date).getTime() + b.discount_days * 86400000);
+                  return (
+                    <Fragment key={b.id}>
+                      <TableRow>
+                        <TableCell>{b.bill_number}</TableCell>
+                        <TableCell>{b.vendor_name}</TableCell>
+                        <TableCell>{b.due_date}</TableCell>
+                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{b.tds_amount > 0 ? fmt(b.tds_amount) : "—"}</TableCell>
+                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(b.amount)}</TableCell>
+                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(b.remaining_balance)}</TableCell>
+                        <TableCell>
+                          <Chip size="small" label={b.status.replace("_", " ")} color={STATUS_COLOR[b.status]} />
+                          {b.discount_taken_amount != null && (
+                            <Chip size="small" label={`discount ${fmt(b.discount_taken_amount)}`} variant="outlined" sx={{ ml: 0.5 }} />
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {isOpen && (
+                            <Button
+                              size="small"
+                              onClick={() => {
+                                setClearingBillId(clearingBillId === b.id ? null : b.id);
+                                setClearBillDate(todayValue());
+                                setClearBillTakeDiscount(false);
+                              }}
+                            >
+                              Clear
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                      {clearingBillId === b.id && (
+                        <TableRow>
+                          <TableCell colSpan={8} sx={{ bgcolor: "action.hover" }}>
+                            <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", alignItems: "center", py: 1 }}>
+                              <TextField select label="Cash account" size="small" value={clearBillCashAccount} onChange={(e) => setClearBillCashAccount(e.target.value)} sx={{ minWidth: 170 }}>
+                                {glAccounts.map((g) => (
+                                  <MenuItem key={g.id} value={g.id}>
+                                    {g.code} {g.name}
+                                  </MenuItem>
+                                ))}
+                              </TextField>
+                              <TextField
+                                label="Date"
+                                type="date"
+                                size="small"
+                                value={clearBillDate}
+                                onChange={(e) => setClearBillDate(e.target.value)}
+                                slotProps={{ inputLabel: { shrink: true } }}
+                              />
+                              {discountEligible && (
+                                <FormControlLabel
+                                  control={<Checkbox size="small" checked={clearBillTakeDiscount} onChange={(e) => setClearBillTakeDiscount(e.target.checked)} />}
+                                  label={`Take ${b.discount_pct}% discount`}
+                                />
+                              )}
+                              <Button size="small" variant="contained" onClick={() => handleClearBill(b.id)} disabled={!clearBillCashAccount}>
+                                Confirm clear
+                              </Button>
+                              <Button size="small" onClick={() => setClearingBillId(null)}>
+                                Cancel
+                              </Button>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
+                  );
+                })}
                 {bills.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7}>
+                    <TableCell colSpan={8}>
                       <Typography variant="body2" color="text.secondary">
                         No bills yet.
                       </Typography>

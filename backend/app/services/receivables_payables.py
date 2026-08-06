@@ -9,7 +9,7 @@ transaction. See app/models/receivables_payables.py for why down payments
 don't need a separate G/L account.
 """
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -68,10 +68,14 @@ def create_customer_invoice(
     net_amount: float,
     tax_code_id=None,
     gst_rate_id=None,
+    discount_pct: Optional[float] = None,
+    discount_days: Optional[int] = None,
     currency: str = "USD",
 ) -> CustomerInvoice:
     if net_amount <= 0:
         raise ARAPError("Invoice amount must be positive.")
+    if (discount_pct is None) != (discount_days is None):
+        raise ARAPError("discount_pct and discount_days must be given together.")
     customer = db.get(Customer, customer_id)
     if customer is None or customer.company_id != company_id:
         raise ARAPError("Customer not found in this company.")
@@ -131,6 +135,8 @@ def create_customer_invoice(
         cgst_amount=cgst,
         sgst_amount=sgst,
         igst_amount=igst,
+        discount_pct=discount_pct,
+        discount_days=discount_days,
         amount=gross_amount,
         currency=currency,
         status=InvoiceStatus.OPEN,
@@ -186,7 +192,50 @@ def invoice_remaining_balance(db: Session, invoice: CustomerInvoice) -> float:
     applied = sum(
         float(a.amount) for a in db.query(CustomerReceiptApplication).filter(CustomerReceiptApplication.invoice_id == invoice.id).all()
     )
-    return round(float(invoice.amount) - applied, 2)
+    return round(float(invoice.amount) - applied - float(invoice.discount_taken_amount or 0.0), 2)
+
+
+def take_customer_invoice_discount(db: Session, company_id, invoice: CustomerInvoice, as_of_date: date) -> CustomerInvoice:
+    """Claims the early-payment discount on an invoice -- posts Dr Sales
+    Discount / Cr AR for the discount amount (no cash moves; it just
+    reduces what's owed), so the remaining balance -- and therefore
+    whether a subsequent receipt clears the invoice -- reflects it."""
+    if invoice.discount_pct is None or invoice.discount_days is None:
+        raise ARAPError("This invoice has no discount terms.")
+    if invoice.discount_taken_amount is not None:
+        raise ARAPError("The discount on this invoice has already been taken.")
+    if as_of_date > invoice.invoice_date + timedelta(days=invoice.discount_days):
+        raise ARAPError("The discount window for this invoice has passed.")
+
+    discount_amount = round(float(invoice.amount) * float(invoice.discount_pct) / 100, 2)
+    remaining = invoice_remaining_balance(db, invoice)
+    if discount_amount > remaining + TOLERANCE:
+        raise ARAPError(f"The discount ({discount_amount:.2f}) exceeds the remaining balance ({remaining:.2f}).")
+
+    ar_account = _control_account(db, company_id, "accounts_receivable", "Accounts Receivable")
+    discount_account = _control_account(db, company_id, "sales_discount", "Sales Discount")
+
+    entry = bookkeeping.create_journal_entry(
+        db,
+        company_id,
+        as_of_date,
+        [
+            bookkeeping.LineInput(gl_account_id=discount_account.id, debit_amount=discount_amount),
+            bookkeeping.LineInput(gl_account_id=ar_account.id, credit_amount=discount_amount),
+        ],
+        reference=f"Discount on invoice {invoice.invoice_number}",
+        description=f"Early-payment discount taken on invoice {invoice.invoice_number}",
+        currency=invoice.currency,
+    )
+    bookkeeping.post_journal_entry(db, entry)
+
+    invoice.discount_taken_amount = discount_amount
+    invoice.discount_taken_date = as_of_date
+    new_remaining = invoice_remaining_balance(db, invoice)
+    invoice.status = InvoiceStatus.PAID if new_remaining <= TOLERANCE else InvoiceStatus.PARTIALLY_PAID
+    db.commit()
+    db.refresh(invoice)
+    return invoice
 
 
 def apply_receipt_to_invoice(db: Session, receipt: CustomerReceipt, invoice: CustomerInvoice, amount: float, applied_date: date) -> CustomerReceiptApplication:
@@ -214,6 +263,21 @@ def apply_receipt_to_invoice(db: Session, receipt: CustomerReceipt, invoice: Cus
     return application
 
 
+def clear_customer_invoice(
+    db: Session, company_id, invoice: CustomerInvoice, cash_gl_account_id, cleared_date: date, take_discount: bool = False
+) -> CustomerReceiptApplication:
+    """One-click settle: records a receipt for exactly what's left on this
+    invoice and applies it in a single step, instead of the two separate
+    actions (record a receipt, then apply it) normally needed."""
+    if take_discount:
+        take_customer_invoice_discount(db, company_id, invoice, cleared_date)
+    remaining = invoice_remaining_balance(db, invoice)
+    if remaining <= TOLERANCE:
+        raise ARAPError("This invoice has no remaining balance to clear.")
+    receipt = create_customer_receipt(db, company_id, invoice.customer_id, cleared_date, cash_gl_account_id, remaining, reference=f"Clearing invoice {invoice.invoice_number}")
+    return apply_receipt_to_invoice(db, receipt, invoice, remaining, cleared_date)
+
+
 # --- Vendor bills / payments (AP) -----------------------------------------
 
 
@@ -229,10 +293,14 @@ def create_vendor_bill(
     tax_code_id=None,
     tds_section_id=None,
     gst_rate_id=None,
+    discount_pct: Optional[float] = None,
+    discount_days: Optional[int] = None,
     currency: str = "USD",
 ) -> VendorBill:
     if net_amount <= 0:
         raise ARAPError("Bill amount must be positive.")
+    if (discount_pct is None) != (discount_days is None):
+        raise ARAPError("discount_pct and discount_days must be given together.")
     vendor = db.get(Vendor, vendor_id)
     if vendor is None or vendor.company_id != company_id:
         raise ARAPError("Vendor not found in this company.")
@@ -308,6 +376,8 @@ def create_vendor_bill(
         cgst_amount=cgst,
         sgst_amount=sgst,
         igst_amount=igst,
+        discount_pct=discount_pct,
+        discount_days=discount_days,
         amount=payable_amount,
         currency=currency,
         status=InvoiceStatus.OPEN,
@@ -361,7 +431,49 @@ def payment_unapplied_balance(db: Session, payment: VendorPayment) -> float:
 
 def bill_remaining_balance(db: Session, bill: VendorBill) -> float:
     applied = sum(float(a.amount) for a in db.query(VendorPaymentApplication).filter(VendorPaymentApplication.bill_id == bill.id).all())
-    return round(float(bill.amount) - applied, 2)
+    return round(float(bill.amount) - applied - float(bill.discount_taken_amount or 0.0), 2)
+
+
+def take_vendor_bill_discount(db: Session, company_id, bill: VendorBill, as_of_date: date) -> VendorBill:
+    """Claims the early-payment discount a vendor offered on this bill --
+    posts Dr AP / Cr Purchase Discount for the discount amount, reducing
+    what's left to pay."""
+    if bill.discount_pct is None or bill.discount_days is None:
+        raise ARAPError("This bill has no discount terms.")
+    if bill.discount_taken_amount is not None:
+        raise ARAPError("The discount on this bill has already been taken.")
+    if as_of_date > bill.bill_date + timedelta(days=bill.discount_days):
+        raise ARAPError("The discount window for this bill has passed.")
+
+    discount_amount = round(float(bill.amount) * float(bill.discount_pct) / 100, 2)
+    remaining = bill_remaining_balance(db, bill)
+    if discount_amount > remaining + TOLERANCE:
+        raise ARAPError(f"The discount ({discount_amount:.2f}) exceeds the remaining balance ({remaining:.2f}).")
+
+    ap_account = _control_account(db, company_id, "accounts_payable", "Accounts Payable")
+    discount_account = _control_account(db, company_id, "purchase_discount", "Purchase Discount")
+
+    entry = bookkeeping.create_journal_entry(
+        db,
+        company_id,
+        as_of_date,
+        [
+            bookkeeping.LineInput(gl_account_id=ap_account.id, debit_amount=discount_amount),
+            bookkeeping.LineInput(gl_account_id=discount_account.id, credit_amount=discount_amount),
+        ],
+        reference=f"Discount on bill {bill.bill_number}",
+        description=f"Early-payment discount taken on bill {bill.bill_number}",
+        currency=bill.currency,
+    )
+    bookkeeping.post_journal_entry(db, entry)
+
+    bill.discount_taken_amount = discount_amount
+    bill.discount_taken_date = as_of_date
+    new_remaining = bill_remaining_balance(db, bill)
+    bill.status = InvoiceStatus.PAID if new_remaining <= TOLERANCE else InvoiceStatus.PARTIALLY_PAID
+    db.commit()
+    db.refresh(bill)
+    return bill
 
 
 def apply_payment_to_bill(db: Session, payment: VendorPayment, bill: VendorBill, amount: float, applied_date: date) -> VendorPaymentApplication:
@@ -387,6 +499,20 @@ def apply_payment_to_bill(db: Session, payment: VendorPayment, bill: VendorBill,
     db.commit()
     db.refresh(application)
     return application
+
+
+def clear_vendor_bill(
+    db: Session, company_id, bill: VendorBill, cash_gl_account_id, cleared_date: date, take_discount: bool = False
+) -> VendorPaymentApplication:
+    """One-click settle: records a payment for exactly what's left on this
+    bill and applies it in a single step."""
+    if take_discount:
+        take_vendor_bill_discount(db, company_id, bill, cleared_date)
+    remaining = bill_remaining_balance(db, bill)
+    if remaining <= TOLERANCE:
+        raise ARAPError("This bill has no remaining balance to clear.")
+    payment = create_vendor_payment(db, company_id, bill.vendor_id, cleared_date, cash_gl_account_id, remaining, reference=f"Clearing bill {bill.bill_number}")
+    return apply_payment_to_bill(db, payment, bill, remaining, cleared_date)
 
 
 # --- Aging ------------------------------------------------------------------

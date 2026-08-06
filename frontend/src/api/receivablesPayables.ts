@@ -18,11 +18,17 @@ export interface CustomerInvoiceInput {
   net_amount: number;
   tax_code_id?: string;
   gst_rate_id?: string;
+  discount_pct?: number;
+  discount_days?: number;
   currency?: string;
 }
 
 export const listCustomerInvoices = (companyId: string) => apiGet<CustomerInvoice[]>(`/customer-invoices?company_id=${companyId}`);
 export const createCustomerInvoice = (companyId: string, input: CustomerInvoiceInput) => apiPost<CustomerInvoice>(`/customer-invoices?company_id=${companyId}`, input);
+export const takeCustomerInvoiceDiscount = (companyId: string, invoiceId: string, as_of_date: string) =>
+  apiPost<CustomerInvoice>(`/customer-invoices/${invoiceId}/discount?company_id=${companyId}`, { as_of_date });
+export const clearCustomerInvoice = (companyId: string, invoiceId: string, cash_gl_account_id: string, cleared_date: string, take_discount = false) =>
+  apiPost<CustomerInvoice>(`/customer-invoices/${invoiceId}/clear?company_id=${companyId}`, { cash_gl_account_id, cleared_date, take_discount });
 
 export const listCustomerReceipts = (companyId: string) => apiGet<CustomerReceipt[]>(`/customer-receipts?company_id=${companyId}`);
 export const createCustomerReceipt = (companyId: string, customer_id: string, receipt_date: string, cash_gl_account_id: string, amount: number, reference?: string) =>
@@ -40,11 +46,17 @@ export interface VendorBillInput {
   tax_code_id?: string;
   tds_section_id?: string;
   gst_rate_id?: string;
+  discount_pct?: number;
+  discount_days?: number;
   currency?: string;
 }
 
 export const listVendorBills = (companyId: string) => apiGet<VendorBill[]>(`/vendor-bills?company_id=${companyId}`);
 export const createVendorBill = (companyId: string, input: VendorBillInput) => apiPost<VendorBill>(`/vendor-bills?company_id=${companyId}`, input);
+export const takeVendorBillDiscount = (companyId: string, billId: string, as_of_date: string) =>
+  apiPost<VendorBill>(`/vendor-bills/${billId}/discount?company_id=${companyId}`, { as_of_date });
+export const clearVendorBill = (companyId: string, billId: string, cash_gl_account_id: string, cleared_date: string, take_discount = false) =>
+  apiPost<VendorBill>(`/vendor-bills/${billId}/clear?company_id=${companyId}`, { cash_gl_account_id, cleared_date, take_discount });
 
 export const listVendorPayments = (companyId: string) => apiGet<VendorPayment[]>(`/vendor-payments?company_id=${companyId}`);
 export const createVendorPayment = (companyId: string, vendor_id: string, payment_date: string, cash_gl_account_id: string, amount: number, reference?: string) =>

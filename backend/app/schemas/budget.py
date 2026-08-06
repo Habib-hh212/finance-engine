@@ -4,7 +4,9 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel
 
-GLForecastRole = Literal["cash", "accounts_receivable", "accounts_payable", "tds_payable"]
+GLForecastRole = Literal[
+    "cash", "accounts_receivable", "accounts_payable", "tds_payable", "sales_discount", "purchase_discount"
+]
 
 
 class GLAccountCreate(BaseModel):
