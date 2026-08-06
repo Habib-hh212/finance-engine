@@ -2,6 +2,7 @@ export interface Company {
   id: string;
   name: string;
   base_currency: string;
+  home_state: string | null;
 }
 
 export interface Product {
@@ -56,6 +57,7 @@ export interface GLAccount {
   name: string;
   category: GLCategory;
   forecast_role: GLForecastRole | null;
+  hsn_sac_code: string | null;
 }
 
 export type BudgetType = "revenue" | "expense" | "master" | "zero_based" | "flexible" | "rolling" | "capital";
@@ -594,6 +596,77 @@ export interface TdsSummary {
   total_tds: number;
 }
 
+export type GstDirection = "input" | "output";
+
+export interface GstRate {
+  id: string;
+  description: string;
+  rate_pct: number;
+  direction: GstDirection;
+  cgst_gl_account_id: string;
+  sgst_gl_account_id: string;
+  igst_gl_account_id: string;
+  is_active: boolean;
+}
+
+export interface Gstr1B2BRow {
+  invoice_id: string;
+  invoice_number: string;
+  invoice_date: string;
+  customer_name: string;
+  customer_gstin: string;
+  taxable_value: number;
+  rate_pct: number;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
+  invoice_value: number;
+}
+
+export interface Gstr1B2CRow {
+  place_of_supply: string;
+  rate_pct: number;
+  taxable_value: number;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
+}
+
+export interface Gstr1HsnRow {
+  hsn_sac_code: string;
+  taxable_value: number;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
+}
+
+export interface Gstr1Report {
+  start: string;
+  end: string;
+  b2b_rows: Gstr1B2BRow[];
+  b2c_rows: Gstr1B2CRow[];
+  hsn_rows: Gstr1HsnRow[];
+  total_taxable_value: number;
+  total_tax: number;
+}
+
+export interface Gstr3bReport {
+  start: string;
+  end: string;
+  outward_taxable_value: number;
+  output_cgst: number;
+  output_sgst: number;
+  output_igst: number;
+  inward_taxable_value: number;
+  input_cgst: number;
+  input_sgst: number;
+  input_igst: number;
+  net_cgst_payable: number;
+  net_sgst_payable: number;
+  net_igst_payable: number;
+  net_tax_payable: number;
+}
+
 export interface GLLedgerLine {
   journal_entry_id: string;
   journal_entry_line_id: string;
@@ -755,11 +828,15 @@ export type InvoiceStatus = "open" | "partially_paid" | "paid" | "void";
 export interface VendorParty {
   id: string;
   name: string;
+  state: string | null;
+  gstin: string | null;
 }
 
 export interface CustomerParty {
   id: string;
   name: string;
+  state: string | null;
+  gstin: string | null;
 }
 
 export interface CustomerInvoice {
@@ -771,6 +848,10 @@ export interface CustomerInvoice {
   due_date: string;
   revenue_gl_account_id: string;
   tax_code_id: string | null;
+  gst_rate_id: string | null;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
   amount: number;
   currency: string;
   status: InvoiceStatus;
@@ -801,6 +882,10 @@ export interface VendorBill {
   tax_code_id: string | null;
   tds_section_id: string | null;
   tds_amount: number;
+  gst_rate_id: string | null;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
   amount: number;
   currency: string;
   status: InvoiceStatus;

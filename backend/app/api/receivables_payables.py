@@ -48,36 +48,36 @@ def _get_or_404(db: Session, model, company_id: uuid.UUID, obj_id: uuid.UUID, la
 
 @router.post("/vendors", response_model=VendorOut)
 def create_vendor(payload: VendorCreate, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    vendor = Vendor(company_id=company_id, name=payload.name)
+    vendor = Vendor(company_id=company_id, name=payload.name, state=payload.state, gstin=payload.gstin)
     db.add(vendor)
     db.flush()
     audit.record(db, company_id, "vendor", vendor.id, "create", current_user, f"Created vendor {vendor.name}")
     db.commit()
     db.refresh(vendor)
-    return VendorOut(id=vendor.id, name=vendor.name)
+    return VendorOut(id=vendor.id, name=vendor.name, state=vendor.state, gstin=vendor.gstin)
 
 
 @router.get("/vendors", response_model=list[VendorOut])
 def list_vendors(company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     vendors = db.query(Vendor).filter(Vendor.company_id == company_id).order_by(Vendor.name).all()
-    return [VendorOut(id=v.id, name=v.name) for v in vendors]
+    return [VendorOut(id=v.id, name=v.name, state=v.state, gstin=v.gstin) for v in vendors]
 
 
 @router.post("/customers", response_model=CustomerOut)
 def create_customer(payload: CustomerCreate, company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    customer = Customer(company_id=company_id, name=payload.name)
+    customer = Customer(company_id=company_id, name=payload.name, state=payload.state, gstin=payload.gstin)
     db.add(customer)
     db.flush()
     audit.record(db, company_id, "customer", customer.id, "create", current_user, f"Created customer {customer.name}")
     db.commit()
     db.refresh(customer)
-    return CustomerOut(id=customer.id, name=customer.name)
+    return CustomerOut(id=customer.id, name=customer.name, state=customer.state, gstin=customer.gstin)
 
 
 @router.get("/customers", response_model=list[CustomerOut])
 def list_customers(company_id: uuid.UUID = Depends(require_company_access), db: Session = Depends(get_db)):
     customers = db.query(Customer).filter(Customer.company_id == company_id).order_by(Customer.name).all()
-    return [CustomerOut(id=c.id, name=c.name) for c in customers]
+    return [CustomerOut(id=c.id, name=c.name, state=c.state, gstin=c.gstin) for c in customers]
 
 
 # --- Customer invoices / receipts -----------------------------------------
@@ -94,6 +94,10 @@ def _invoice_out(db: Session, invoice: CustomerInvoice) -> CustomerInvoiceOut:
         due_date=invoice.due_date,
         revenue_gl_account_id=invoice.revenue_gl_account_id,
         tax_code_id=invoice.tax_code_id,
+        gst_rate_id=invoice.gst_rate_id,
+        cgst_amount=float(invoice.cgst_amount or 0.0),
+        sgst_amount=float(invoice.sgst_amount or 0.0),
+        igst_amount=float(invoice.igst_amount or 0.0),
         amount=float(invoice.amount),
         currency=invoice.currency,
         status=invoice.status,
@@ -186,6 +190,10 @@ def _bill_out(db: Session, bill: VendorBill) -> VendorBillOut:
         tax_code_id=bill.tax_code_id,
         tds_section_id=bill.tds_section_id,
         tds_amount=float(bill.tds_amount or 0.0),
+        gst_rate_id=bill.gst_rate_id,
+        cgst_amount=float(bill.cgst_amount or 0.0),
+        sgst_amount=float(bill.sgst_amount or 0.0),
+        igst_amount=float(bill.igst_amount or 0.0),
         amount=float(bill.amount),
         currency=bill.currency,
         status=bill.status,

@@ -15,11 +15,13 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models import (
+    Company,
     Customer,
     CustomerInvoice,
     CustomerReceipt,
     CustomerReceiptApplication,
     GLAccount,
+    GstRate,
     TaxCode,
     TdsSection,
     Vendor,
@@ -29,6 +31,7 @@ from app.models import (
 )
 from app.models.receivables_payables import InvoiceStatus
 from app.services import bookkeeping
+from app.services import gst as gst_service
 from app.services import tds as tds_service
 
 TOLERANCE = 0.01
@@ -64,6 +67,7 @@ def create_customer_invoice(
     revenue_gl_account_id,
     net_amount: float,
     tax_code_id=None,
+    gst_rate_id=None,
     currency: str = "USD",
 ) -> CustomerInvoice:
     if net_amount <= 0:
@@ -78,16 +82,37 @@ def create_customer_invoice(
         tax_code = db.get(TaxCode, tax_code_id)
         if tax_code is None or tax_code.company_id != company_id:
             raise ARAPError("Tax code doesn't belong to this company.")
-    gross_amount = round(net_amount + _tax_amount(tax_code, net_amount), 2)
+
+    gst_rate = None
+    cgst = sgst = igst = 0.0
+    if gst_rate_id is not None:
+        gst_rate = db.get(GstRate, gst_rate_id)
+        if gst_rate is None or gst_rate.company_id != company_id:
+            raise ARAPError("GST rate doesn't belong to this company.")
+        company = db.get(Company, company_id)
+        intra_state = gst_service.is_intra_state(company.home_state if company else None, customer.state)
+        split = gst_service.split_gst(gst_rate, net_amount, intra_state)
+        cgst, sgst, igst = split.cgst_amount, split.sgst_amount, split.igst_amount
+
+    gross_amount = round(net_amount + _tax_amount(tax_code, net_amount) + cgst + sgst + igst, 2)
+
+    lines = [
+        bookkeeping.LineInput(gl_account_id=ar_account.id, debit_amount=gross_amount),
+        bookkeeping.LineInput(gl_account_id=revenue_gl_account_id, credit_amount=net_amount, tax_code_id=tax_code_id),
+    ]
+    if gst_rate is not None:
+        if cgst > 0:
+            lines.append(bookkeeping.LineInput(gl_account_id=gst_rate.cgst_gl_account_id, credit_amount=cgst))
+        if sgst > 0:
+            lines.append(bookkeeping.LineInput(gl_account_id=gst_rate.sgst_gl_account_id, credit_amount=sgst))
+        if igst > 0:
+            lines.append(bookkeeping.LineInput(gl_account_id=gst_rate.igst_gl_account_id, credit_amount=igst))
 
     entry = bookkeeping.create_journal_entry(
         db,
         company_id,
         invoice_date,
-        [
-            bookkeeping.LineInput(gl_account_id=ar_account.id, debit_amount=gross_amount),
-            bookkeeping.LineInput(gl_account_id=revenue_gl_account_id, credit_amount=net_amount, tax_code_id=tax_code_id),
-        ],
+        lines,
         reference=f"Invoice {invoice_number}",
         description=f"Invoice {invoice_number} to {customer.name}",
         currency=currency,
@@ -102,6 +127,10 @@ def create_customer_invoice(
         due_date=due_date,
         revenue_gl_account_id=revenue_gl_account_id,
         tax_code_id=tax_code_id,
+        gst_rate_id=gst_rate_id,
+        cgst_amount=cgst,
+        sgst_amount=sgst,
+        igst_amount=igst,
         amount=gross_amount,
         currency=currency,
         status=InvoiceStatus.OPEN,
@@ -199,6 +228,7 @@ def create_vendor_bill(
     net_amount: float,
     tax_code_id=None,
     tds_section_id=None,
+    gst_rate_id=None,
     currency: str = "USD",
 ) -> VendorBill:
     if net_amount <= 0:
@@ -213,7 +243,19 @@ def create_vendor_bill(
         tax_code = db.get(TaxCode, tax_code_id)
         if tax_code is None or tax_code.company_id != company_id:
             raise ARAPError("Tax code doesn't belong to this company.")
-    gross_amount = round(net_amount + _tax_amount(tax_code, net_amount), 2)
+
+    gst_rate = None
+    cgst = sgst = igst = 0.0
+    if gst_rate_id is not None:
+        gst_rate = db.get(GstRate, gst_rate_id)
+        if gst_rate is None or gst_rate.company_id != company_id:
+            raise ARAPError("GST rate doesn't belong to this company.")
+        company = db.get(Company, company_id)
+        intra_state = gst_service.is_intra_state(company.home_state if company else None, vendor.state)
+        split = gst_service.split_gst(gst_rate, net_amount, intra_state)
+        cgst, sgst, igst = split.cgst_amount, split.sgst_amount, split.igst_amount
+
+    gross_amount = round(net_amount + _tax_amount(tax_code, net_amount) + cgst + sgst + igst, 2)
 
     tds_section = None
     tds_deducted = 0.0
@@ -229,6 +271,13 @@ def create_vendor_bill(
     payable_amount = round(gross_amount - tds_deducted, 2)
 
     lines = [bookkeeping.LineInput(gl_account_id=expense_gl_account_id, debit_amount=net_amount, tax_code_id=tax_code_id)]
+    if gst_rate is not None:
+        if cgst > 0:
+            lines.append(bookkeeping.LineInput(gl_account_id=gst_rate.cgst_gl_account_id, debit_amount=cgst))
+        if sgst > 0:
+            lines.append(bookkeeping.LineInput(gl_account_id=gst_rate.sgst_gl_account_id, debit_amount=sgst))
+        if igst > 0:
+            lines.append(bookkeeping.LineInput(gl_account_id=gst_rate.igst_gl_account_id, debit_amount=igst))
     if tds_deducted > 0:
         tds_account = _control_account(db, company_id, "tds_payable", "TDS Payable")
         lines.append(bookkeeping.LineInput(gl_account_id=tds_account.id, credit_amount=tds_deducted))
@@ -255,6 +304,10 @@ def create_vendor_bill(
         tax_code_id=tax_code_id,
         tds_section_id=tds_section_id,
         tds_amount=tds_deducted,
+        gst_rate_id=gst_rate_id,
+        cgst_amount=cgst,
+        sgst_amount=sgst,
+        igst_amount=igst,
         amount=payable_amount,
         currency=currency,
         status=InvoiceStatus.OPEN,

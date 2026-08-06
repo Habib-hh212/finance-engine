@@ -28,3 +28,9 @@ class Customer(Base):
     company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     region: Mapped[str] = mapped_column(String(100), nullable=True)
+    # India GST place-of-supply: compared against Company.home_state to
+    # decide CGST+SGST (same state) vs IGST (different state) on a sale.
+    # A populated gstin also marks this customer as a B2B (registered)
+    # counterparty for GSTR-1 reporting -- blank means B2C.
+    state: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    gstin: Mapped[Optional[str]] = mapped_column(String(15), nullable=True)

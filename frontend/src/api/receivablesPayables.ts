@@ -2,10 +2,12 @@ import { apiGet, apiPost } from "./client";
 import type { AgingReport, CustomerInvoice, CustomerParty, CustomerReceipt, VendorBill, VendorParty, VendorPayment } from "./types";
 
 export const listCustomers = (companyId: string) => apiGet<CustomerParty[]>(`/customers?company_id=${companyId}`);
-export const createCustomer = (companyId: string, name: string) => apiPost<CustomerParty>(`/customers?company_id=${companyId}`, { name });
+export const createCustomer = (companyId: string, name: string, state?: string, gstin?: string) =>
+  apiPost<CustomerParty>(`/customers?company_id=${companyId}`, { name, state, gstin });
 
 export const listVendors = (companyId: string) => apiGet<VendorParty[]>(`/vendors?company_id=${companyId}`);
-export const createVendor = (companyId: string, name: string) => apiPost<VendorParty>(`/vendors?company_id=${companyId}`, { name });
+export const createVendor = (companyId: string, name: string, state?: string, gstin?: string) =>
+  apiPost<VendorParty>(`/vendors?company_id=${companyId}`, { name, state, gstin });
 
 export interface CustomerInvoiceInput {
   customer_id: string;
@@ -15,6 +17,7 @@ export interface CustomerInvoiceInput {
   revenue_gl_account_id: string;
   net_amount: number;
   tax_code_id?: string;
+  gst_rate_id?: string;
   currency?: string;
 }
 
@@ -36,6 +39,7 @@ export interface VendorBillInput {
   net_amount: number;
   tax_code_id?: string;
   tds_section_id?: string;
+  gst_rate_id?: string;
   currency?: string;
 }
 

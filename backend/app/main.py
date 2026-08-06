@@ -18,6 +18,7 @@ from app.api import (
     financial_statements,
     fixed_assets,
     fx,
+    gst,
     insights,
     kpis,
     marginal_costing,
@@ -86,6 +87,7 @@ app.include_router(bank_reconciliation.router, dependencies=_auth_dep)
 app.include_router(period_close.router, dependencies=_auth_dep)
 app.include_router(receivables_payables.router, dependencies=_auth_dep)
 app.include_router(tds.router, dependencies=_auth_dep)
+app.include_router(gst.router, dependencies=_auth_dep)
 
 
 @app.get("/health")

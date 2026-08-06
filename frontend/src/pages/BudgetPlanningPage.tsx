@@ -188,7 +188,7 @@ export function BudgetPlanningPage() {
     });
 
   const handleChangeGlRole = (accountId: string, role: GLForecastRole | "") =>
-    runAction(() => updateGLAccount(accountId, role || null));
+    runAction(() => updateGLAccount(accountId, { forecast_role: role || null }));
 
   const rolesForCategory = (category: GLCategory): GLForecastRole[] => {
     if (category === "asset") return ["cash", "accounts_receivable"];

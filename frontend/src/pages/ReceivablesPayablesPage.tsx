@@ -20,6 +20,7 @@ import { useCompany } from "../context/CompanyContext";
 import { listGLAccounts } from "../api/budgets";
 import { listTaxCodes } from "../api/taxCodes";
 import { listTdsSections } from "../api/tds";
+import { listGstRates } from "../api/gst";
 import {
   applyCustomerReceipt,
   applyVendorPayment,
@@ -44,6 +45,7 @@ import type {
   CustomerParty,
   CustomerReceipt,
   GLAccount,
+  GstRate,
   InvoiceStatus,
   TaxCode,
   TdsSection,
@@ -78,6 +80,7 @@ export function ReceivablesPayablesPage() {
   const [glAccounts, setGlAccounts] = useState<GLAccount[]>([]);
   const [taxCodes, setTaxCodes] = useState<TaxCode[]>([]);
   const [tdsSections, setTdsSections] = useState<TdsSection[]>([]);
+  const [gstRates, setGstRates] = useState<GstRate[]>([]);
   const [customers, setCustomers] = useState<CustomerParty[]>([]);
   const [vendors, setVendors] = useState<VendorParty[]>([]);
   const [invoices, setInvoices] = useState<CustomerInvoice[]>([]);
@@ -88,7 +91,11 @@ export function ReceivablesPayablesPage() {
 
   // Quick-add party
   const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerState, setNewCustomerState] = useState("");
+  const [newCustomerGstin, setNewCustomerGstin] = useState("");
   const [newVendorName, setNewVendorName] = useState("");
+  const [newVendorState, setNewVendorState] = useState("");
+  const [newVendorGstin, setNewVendorGstin] = useState("");
 
   // New invoice
   const [invCustomer, setInvCustomer] = useState("");
@@ -98,6 +105,7 @@ export function ReceivablesPayablesPage() {
   const [invRevenueAccount, setInvRevenueAccount] = useState("");
   const [invAmount, setInvAmount] = useState("");
   const [invTaxCode, setInvTaxCode] = useState("");
+  const [invGstRate, setInvGstRate] = useState("");
 
   // New receipt
   const [rcCustomer, setRcCustomer] = useState("");
@@ -120,6 +128,7 @@ export function ReceivablesPayablesPage() {
   const [billAmount, setBillAmount] = useState("");
   const [billTaxCode, setBillTaxCode] = useState("");
   const [billTdsSection, setBillTdsSection] = useState("");
+  const [billGstRate, setBillGstRate] = useState("");
 
   // New payment
   const [pmVendor, setPmVendor] = useState("");
@@ -143,10 +152,11 @@ export function ReceivablesPayablesPage() {
     if (!company) return;
     setError(null);
     try {
-      const [accounts, codes, sections, cust, vend, inv, rcpt, bl, pay] = await Promise.all([
+      const [accounts, codes, sections, rates, cust, vend, inv, rcpt, bl, pay] = await Promise.all([
         listGLAccounts(company.id),
         listTaxCodes(company.id),
         listTdsSections(company.id),
+        listGstRates(company.id),
         listCustomers(company.id),
         listVendors(company.id),
         listCustomerInvoices(company.id),
@@ -157,6 +167,7 @@ export function ReceivablesPayablesPage() {
       setGlAccounts(accounts);
       setTaxCodes(codes);
       setTdsSections(sections);
+      setGstRates(rates);
       setCustomers(cust);
       setVendors(vend);
       setInvoices(inv);
@@ -193,8 +204,10 @@ export function ReceivablesPayablesPage() {
     if (!company || !newCustomerName) return;
     setError(null);
     try {
-      await createCustomer(company.id, newCustomerName);
+      await createCustomer(company.id, newCustomerName, newCustomerState || undefined, newCustomerGstin || undefined);
       setNewCustomerName("");
+      setNewCustomerState("");
+      setNewCustomerGstin("");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add customer");
@@ -205,8 +218,10 @@ export function ReceivablesPayablesPage() {
     if (!company || !newVendorName) return;
     setError(null);
     try {
-      await createVendor(company.id, newVendorName);
+      await createVendor(company.id, newVendorName, newVendorState || undefined, newVendorGstin || undefined);
       setNewVendorName("");
+      setNewVendorState("");
+      setNewVendorGstin("");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add vendor");
@@ -225,10 +240,12 @@ export function ReceivablesPayablesPage() {
         revenue_gl_account_id: invRevenueAccount,
         net_amount: Number(invAmount),
         tax_code_id: invTaxCode || undefined,
+        gst_rate_id: invGstRate || undefined,
       });
       setInvNumber("");
       setInvAmount("");
       setInvTaxCode("");
+      setInvGstRate("");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create the invoice");
@@ -275,11 +292,13 @@ export function ReceivablesPayablesPage() {
         net_amount: Number(billAmount),
         tax_code_id: billTaxCode || undefined,
         tds_section_id: billTdsSection || undefined,
+        gst_rate_id: billGstRate || undefined,
       });
       setBillNumber("");
       setBillAmount("");
       setBillTaxCode("");
       setBillTdsSection("");
+      setBillGstRate("");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create the bill");
@@ -335,12 +354,16 @@ export function ReceivablesPayablesPage() {
           <Stack direction="row" spacing={4} sx={{ flexWrap: "wrap" }}>
             <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
               <TextField label="New customer" size="small" value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} />
+              <TextField label="State" size="small" value={newCustomerState} onChange={(e) => setNewCustomerState(e.target.value)} sx={{ width: 130 }} />
+              <TextField label="GSTIN" size="small" value={newCustomerGstin} onChange={(e) => setNewCustomerGstin(e.target.value)} sx={{ width: 160 }} />
               <Button size="small" variant="outlined" onClick={handleAddCustomer} disabled={!newCustomerName}>
                 Add
               </Button>
             </Stack>
             <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
               <TextField label="New vendor" size="small" value={newVendorName} onChange={(e) => setNewVendorName(e.target.value)} />
+              <TextField label="State" size="small" value={newVendorState} onChange={(e) => setNewVendorState(e.target.value)} sx={{ width: 130 }} />
+              <TextField label="GSTIN" size="small" value={newVendorGstin} onChange={(e) => setNewVendorGstin(e.target.value)} sx={{ width: 160 }} />
               <Button size="small" variant="outlined" onClick={handleAddVendor} disabled={!newVendorName}>
                 Add
               </Button>
@@ -380,6 +403,14 @@ export function ReceivablesPayablesPage() {
               {taxCodes.filter((t) => t.is_active).map((t) => (
                 <MenuItem key={t.id} value={t.id}>
                   {t.code} ({t.rate_pct}%)
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField select label="GST rate" size="small" value={invGstRate} onChange={(e) => setInvGstRate(e.target.value)} sx={{ minWidth: 160 }}>
+              <MenuItem value="">— none —</MenuItem>
+              {gstRates.filter((r) => r.is_active && r.direction === "output").map((r) => (
+                <MenuItem key={r.id} value={r.id}>
+                  {r.description} ({r.rate_pct}%)
                 </MenuItem>
               ))}
             </TextField>
@@ -604,6 +635,14 @@ export function ReceivablesPayablesPage() {
               {tdsSections.filter((s) => s.is_active).map((s) => (
                 <MenuItem key={s.id} value={s.id}>
                   {s.section_code} ({s.rate_pct}%)
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField select label="GST rate" size="small" value={billGstRate} onChange={(e) => setBillGstRate(e.target.value)} sx={{ minWidth: 160 }}>
+              <MenuItem value="">— none —</MenuItem>
+              {gstRates.filter((r) => r.is_active && r.direction === "input").map((r) => (
+                <MenuItem key={r.id} value={r.id}>
+                  {r.description} ({r.rate_pct}%)
                 </MenuItem>
               ))}
             </TextField>
