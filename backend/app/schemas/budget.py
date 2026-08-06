@@ -5,7 +5,16 @@ from typing import Literal, Optional
 from pydantic import BaseModel
 
 GLForecastRole = Literal[
-    "cash", "accounts_receivable", "accounts_payable", "tds_payable", "sales_discount", "purchase_discount"
+    "cash",
+    "accounts_receivable",
+    "accounts_payable",
+    "tds_payable",
+    "sales_discount",
+    "purchase_discount",
+    "salary_expense",
+    "pf_payable",
+    "esi_payable",
+    "professional_tax_payable",
 ]
 
 

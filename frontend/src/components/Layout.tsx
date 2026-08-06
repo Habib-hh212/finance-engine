@@ -19,6 +19,7 @@ import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import PercentIcon from "@mui/icons-material/Percent";
 import PublicIcon from "@mui/icons-material/Public";
+import GroupsIcon from "@mui/icons-material/Groups";
 import {
   AppBar,
   Box,
@@ -72,6 +73,7 @@ const NAV_GROUPS: { heading: string | null; items: { to: string; label: string; 
       { to: "/period-close", label: "Period Close", icon: <EventAvailableIcon /> },
       { to: "/receivables-payables", label: "Receivables & Payables", icon: <RequestQuoteIcon /> },
       { to: "/bank-reconciliation", label: "Bank Reconciliation", icon: <AccountBalanceWalletIcon /> },
+      { to: "/payroll", label: "Payroll (India)", icon: <GroupsIcon /> },
     ],
   },
   {

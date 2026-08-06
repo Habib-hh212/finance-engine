@@ -55,7 +55,11 @@ export type GLForecastRole =
   | "accounts_payable"
   | "tds_payable"
   | "sales_discount"
-  | "purchase_discount";
+  | "purchase_discount"
+  | "salary_expense"
+  | "pf_payable"
+  | "esi_payable"
+  | "professional_tax_payable";
 
 export interface GLAccount {
   id: string;
@@ -979,4 +983,74 @@ export interface CustomerChurnRisk {
   risk_ratio: number;
   risk_level: "low" | "medium" | "high";
   total_revenue: number;
+}
+
+export type TaxRegime = "old" | "new";
+
+export interface Employee {
+  id: string;
+  name: string;
+  pan: string | null;
+  email: string | null;
+  date_of_joining: string;
+  is_active: boolean;
+  tax_regime: TaxRegime;
+  basic_monthly: number;
+  hra_monthly: number;
+  special_allowance_monthly: number;
+  other_allowance_monthly: number;
+  is_metro: boolean;
+}
+
+export interface InvestmentDeclaration {
+  id: string;
+  employee_id: string;
+  financial_year: number;
+  section_80c: number;
+  section_80d: number;
+  home_loan_interest: number;
+  rent_paid_monthly: number;
+}
+
+export interface Payslip {
+  id: string;
+  employee_id: string;
+  basic: number;
+  hra: number;
+  special_allowance: number;
+  other_allowance: number;
+  gross_pay: number;
+  pf_employee: number;
+  pf_employer: number;
+  esi_employee: number;
+  esi_employer: number;
+  professional_tax: number;
+  tds_amount: number;
+  net_pay: number;
+}
+
+export interface PayrollRun {
+  id: string;
+  period_month: number;
+  period_year: number;
+  run_date: string;
+  status: string;
+  journal_entry_id: string | null;
+  payslips: Payslip[];
+}
+
+export interface Form16MonthRow {
+  period_month: number;
+  period_year: number;
+  gross_pay: number;
+  tds_amount: number;
+}
+
+export interface Form16Summary {
+  employee_id: string;
+  financial_year: number;
+  regime: TaxRegime;
+  total_gross: number;
+  total_tds: number;
+  months: Form16MonthRow[];
 }
