@@ -66,10 +66,6 @@ export function AuditTrailPage() {
       <Typography variant="h5" sx={{ fontWeight: 600 }}>
         Audit Trail
       </Typography>
-      <Typography variant="caption" color="text.secondary">
-        Who changed what, when — every budget lifecycle action, actual posting, GL account, cost center, and scenario
-        change, newest first.
-      </Typography>
       {error && <Alert severity="error">{error}</Alert>}
 
       <TextField

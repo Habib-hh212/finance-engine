@@ -208,10 +208,6 @@ export function FinancialStatementsPage() {
       <Typography variant="h5" sx={{ fontWeight: 600 }}>
         Financial Statements
       </Typography>
-      <Typography variant="caption" color="text.secondary">
-        Built from actuals already posted on the Cost Controlling page. There's no double-entry enforcement here, so the
-        Balance Sheet shows whether assets equal liabilities + equity rather than assuming it.
-      </Typography>
       {error && <Alert severity="error">{error}</Alert>}
 
       <Card variant="outlined">

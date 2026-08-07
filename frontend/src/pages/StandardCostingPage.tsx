@@ -154,10 +154,6 @@ export function StandardCostingPage() {
         <TextField label="Fiscal year" size="small" value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)} sx={{ width: 140 }} />
       </Stack>
       {error && <Alert severity="error">{error}</Alert>}
-      <Typography variant="caption" color="text.secondary">
-        The 8-variance method: material price/quantity, labor rate/efficiency, variable overhead spending/efficiency,
-        fixed overhead budget/volume. Positive is favorable (actual cost under standard); negative is unfavorable.
-      </Typography>
 
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 6 }}>

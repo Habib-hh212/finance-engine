@@ -90,11 +90,6 @@ export function FxScenarioPage() {
       <Typography variant="h5" sx={{ fontWeight: 600 }}>
         FX Scenario
       </Typography>
-      <Typography variant="caption" color="text.secondary">
-        The currency-risk counterpart to Scenario Planning: converts non-base-currency sales into the company's base
-        currency using the latest rate on file, then shows what that revenue would be worth if the rate moved by a
-        hypothetical percentage. Scoped to sales actuals — record the rates you care about below first.
-      </Typography>
       {error && <Alert severity="error">{error}</Alert>}
 
       <Card variant="outlined">

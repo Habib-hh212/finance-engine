@@ -120,11 +120,6 @@ export function ScenarioPlanningPage() {
       <Typography variant="h5" sx={{ fontWeight: 600 }}>
         Scenario Planning
       </Typography>
-      <Typography variant="caption" color="text.secondary">
-        A scenario is a flat growth assumption (e.g. sales +10%, costs -5%) layered on top of the same Financial
-        Statement Forecast already computed elsewhere — the base case and the scenario are recalculated side by side so
-        the "what if" is a real comparison, not a separate guess.
-      </Typography>
       {error && <Alert severity="error">{error}</Alert>}
 
       <Grid container spacing={3}>

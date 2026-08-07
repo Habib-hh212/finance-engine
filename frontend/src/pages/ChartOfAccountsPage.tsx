@@ -104,11 +104,6 @@ export function ChartOfAccountsPage() {
       <Typography variant="h5" sx={{ fontWeight: 600 }}>
         Chart of Accounts
       </Typography>
-      <Typography variant="caption" color="text.secondary">
-        The master list of G/L accounts every journal entry, budget line, and actual posts against. Assets and
-        expenses are debit-normal; liabilities, equity, and revenue are credit-normal — that's what signs the amount
-        correctly everywhere else in the app once an account is created here.
-      </Typography>
       {error && <Alert severity="error">{error}</Alert>}
 
       <Card variant="outlined">

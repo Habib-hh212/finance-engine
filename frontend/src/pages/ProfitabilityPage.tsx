@@ -122,10 +122,6 @@ export function ProfitabilityPage() {
         Profitability Analysis
       </Typography>
       {error && <Alert severity="error">{error}</Alert>}
-      <Typography variant="caption" color="text.secondary">
-        Contribution margin needs a unit variable cost set per product — set it on the Sales Forecast page. Products without
-        one show revenue but a blank contribution, not a false zero.
-      </Typography>
 
       <Typography variant="h6">By Product</Typography>
       <TableContainer component={Card} variant="outlined">
