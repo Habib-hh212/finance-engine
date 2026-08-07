@@ -1,23 +1,28 @@
 import { Fragment, useEffect, useState } from "react";
 import {
   Alert,
+  Box,
   Button,
   Card,
   CardContent,
   Checkbox,
   Chip,
   FormControlLabel,
+  Grid,
   MenuItem,
   Stack,
+  Tab,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
+import { TabPanel } from "../components/TabPanel";
 import { useCompany } from "../context/CompanyContext";
 import { listGLAccounts } from "../api/budgets";
 import { listTaxCodes } from "../api/taxCodes";
@@ -81,6 +86,7 @@ const BUCKET_COLOR: Record<string, "success" | "info" | "warning" | "error"> = {
 
 export function ReceivablesPayablesPage() {
   const { company } = useCompany();
+  const [tab, setTab] = useState(0);
   const [glAccounts, setGlAccounts] = useState<GLAccount[]>([]);
   const [taxCodes, setTaxCodes] = useState<TaxCode[]>([]);
   const [tdsSections, setTdsSections] = useState<TdsSection[]>([]);
@@ -398,617 +404,758 @@ export function ReceivablesPayablesPage() {
       <Typography variant="h5" sx={{ fontWeight: 600 }}>
         Receivables &amp; Payables
       </Typography>
-      <Typography variant="caption" color="text.secondary">
-        Every invoice, bill, receipt, and payment posts a real journal entry through the General Ledger. A receipt or
-        payment not yet linked to anything is a down payment -- an unapplied balance on the AR/AP control account --
-        apply it to an invoice or bill whenever one shows up, no separate posting needed.
-      </Typography>
       {error && <Alert severity="error">{error}</Alert>}
 
-      <Card variant="outlined">
-        <CardContent>
-          <Stack direction="row" spacing={4} sx={{ flexWrap: "wrap" }}>
-            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-              <TextField label="New customer" size="small" value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} />
-              <TextField label="State" size="small" value={newCustomerState} onChange={(e) => setNewCustomerState(e.target.value)} sx={{ width: 130 }} />
-              <TextField label="GSTIN" size="small" value={newCustomerGstin} onChange={(e) => setNewCustomerGstin(e.target.value)} sx={{ width: 160 }} />
-              <Button size="small" variant="outlined" onClick={handleAddCustomer} disabled={!newCustomerName}>
-                Add
-              </Button>
-            </Stack>
-            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-              <TextField label="New vendor" size="small" value={newVendorName} onChange={(e) => setNewVendorName(e.target.value)} />
-              <TextField label="State" size="small" value={newVendorState} onChange={(e) => setNewVendorState(e.target.value)} sx={{ width: 130 }} />
-              <TextField label="GSTIN" size="small" value={newVendorGstin} onChange={(e) => setNewVendorGstin(e.target.value)} sx={{ width: 160 }} />
-              <Button size="small" variant="outlined" onClick={handleAddVendor} disabled={!newVendorName}>
-                Add
-              </Button>
-            </Stack>
-          </Stack>
-        </CardContent>
-      </Card>
+      <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)}>
+          <Tab label="Customers & Vendors" />
+          <Tab label="Accounts Receivable" />
+          <Tab label="Accounts Payable" />
+          <Tab label="Help" />
+        </Tabs>
+      </Box>
 
-      <Typography variant="h6">Accounts Receivable</Typography>
-
-      <Card variant="outlined">
-        <CardContent>
-          <Typography variant="subtitle1" gutterBottom>
-            New Invoice
-          </Typography>
-          <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", alignItems: "center" }}>
-            <TextField select label="Customer" size="small" value={invCustomer} onChange={(e) => setInvCustomer(e.target.value)} sx={{ minWidth: 170 }}>
-              {customers.map((c) => (
-                <MenuItem key={c.id} value={c.id}>
-                  {c.name}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField label="Invoice #" size="small" value={invNumber} onChange={(e) => setInvNumber(e.target.value)} sx={{ width: 130 }} />
-            <TextField label="Date" type="date" size="small" value={invDate} onChange={(e) => setInvDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-            <TextField label="Due date" type="date" size="small" value={invDueDate} onChange={(e) => setInvDueDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-            <TextField select label="Revenue account" size="small" value={invRevenueAccount} onChange={(e) => setInvRevenueAccount(e.target.value)} sx={{ minWidth: 170 }}>
-              {glAccounts.map((g) => (
-                <MenuItem key={g.id} value={g.id}>
-                  {g.code} {g.name}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField label="Net amount" type="number" size="small" value={invAmount} onChange={(e) => setInvAmount(e.target.value)} sx={{ width: 130 }} />
-            <TextField select label="Tax code" size="small" value={invTaxCode} onChange={(e) => setInvTaxCode(e.target.value)} sx={{ minWidth: 160 }}>
-              <MenuItem value="">— none —</MenuItem>
-              {taxCodes.filter((t) => t.is_active).map((t) => (
-                <MenuItem key={t.id} value={t.id}>
-                  {t.code} ({t.rate_pct}%)
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField select label="GST rate" size="small" value={invGstRate} onChange={(e) => setInvGstRate(e.target.value)} sx={{ minWidth: 160 }}>
-              <MenuItem value="">— none —</MenuItem>
-              {gstRates.filter((r) => r.is_active && r.direction === "output").map((r) => (
-                <MenuItem key={r.id} value={r.id}>
-                  {r.description} ({r.rate_pct}%)
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField label="Discount %" type="number" size="small" value={invDiscountPct} onChange={(e) => setInvDiscountPct(e.target.value)} sx={{ width: 110 }} />
-            <TextField label="Discount days" type="number" size="small" value={invDiscountDays} onChange={(e) => setInvDiscountDays(e.target.value)} sx={{ width: 130 }} />
-            <Button variant="contained" onClick={handleCreateInvoice} disabled={!invCustomer || !invNumber || !invRevenueAccount || !invAmount}>
-              Create invoice
-            </Button>
-          </Stack>
-
-          <TableContainer sx={{ mt: 2 }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Number</TableCell>
-                  <TableCell>Customer</TableCell>
-                  <TableCell>Due</TableCell>
-                  <TableCell align="right">Amount</TableCell>
-                  <TableCell align="right">Remaining</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell />
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {invoices.map((i) => {
-                  const isOpen = i.status === "open" || i.status === "partially_paid";
-                  const discountEligible =
-                    i.discount_pct != null && i.discount_days != null && i.discount_taken_amount == null && new Date() <= new Date(new Date(i.invoice_date).getTime() + i.discount_days * 86400000);
-                  return (
-                    <Fragment key={i.id}>
+      <TabPanel value={tab} index={0}>
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Card variant="outlined">
+              <CardContent>
+                <Typography variant="subtitle1" gutterBottom>
+                  New Customer
+                </Typography>
+                <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+                  <TextField label="Name" size="small" value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} />
+                  <TextField label="State" size="small" value={newCustomerState} onChange={(e) => setNewCustomerState(e.target.value)} sx={{ width: 130 }} />
+                  <TextField label="GSTIN" size="small" value={newCustomerGstin} onChange={(e) => setNewCustomerGstin(e.target.value)} sx={{ width: 160 }} />
+                  <Button size="small" variant="outlined" onClick={handleAddCustomer} disabled={!newCustomerName}>
+                    Add
+                  </Button>
+                </Stack>
+                <TableContainer sx={{ mt: 2 }}>
+                  <Table size="small">
+                    <TableHead>
                       <TableRow>
-                        <TableCell>{i.invoice_number}</TableCell>
-                        <TableCell>{i.customer_name}</TableCell>
-                        <TableCell>{i.due_date}</TableCell>
-                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(i.amount)}</TableCell>
-                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(i.remaining_balance)}</TableCell>
-                        <TableCell>
-                          <Chip size="small" label={i.status.replace("_", " ")} color={STATUS_COLOR[i.status]} />
-                          {i.discount_taken_amount != null && (
-                            <Chip size="small" label={`discount ${fmt(i.discount_taken_amount)}`} variant="outlined" sx={{ ml: 0.5 }} />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {isOpen && (
-                            <Button
-                              size="small"
-                              onClick={() => {
-                                setClearingInvoiceId(clearingInvoiceId === i.id ? null : i.id);
-                                setClearInvoiceDate(todayValue());
-                                setClearInvoiceTakeDiscount(false);
-                              }}
-                            >
-                              Clear
-                            </Button>
-                          )}
-                        </TableCell>
+                        <TableCell>Name</TableCell>
+                        <TableCell>State</TableCell>
+                        <TableCell>GSTIN</TableCell>
                       </TableRow>
-                      {clearingInvoiceId === i.id && (
+                    </TableHead>
+                    <TableBody>
+                      {customers.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell>{c.name}</TableCell>
+                          <TableCell>{c.state ?? "—"}</TableCell>
+                          <TableCell>{c.gstin ?? "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                      {customers.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={7} sx={{ bgcolor: "action.hover" }}>
-                            <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", alignItems: "center", py: 1 }}>
-                              <TextField select label="Cash account" size="small" value={clearInvoiceCashAccount} onChange={(e) => setClearInvoiceCashAccount(e.target.value)} sx={{ minWidth: 170 }}>
-                                {glAccounts.map((g) => (
-                                  <MenuItem key={g.id} value={g.id}>
-                                    {g.code} {g.name}
-                                  </MenuItem>
-                                ))}
-                              </TextField>
-                              <TextField
-                                label="Date"
-                                type="date"
-                                size="small"
-                                value={clearInvoiceDate}
-                                onChange={(e) => setClearInvoiceDate(e.target.value)}
-                                slotProps={{ inputLabel: { shrink: true } }}
-                              />
-                              {discountEligible && (
-                                <FormControlLabel
-                                  control={<Checkbox size="small" checked={clearInvoiceTakeDiscount} onChange={(e) => setClearInvoiceTakeDiscount(e.target.checked)} />}
-                                  label={`Take ${i.discount_pct}% discount`}
-                                />
-                              )}
-                              <Button size="small" variant="contained" onClick={() => handleClearInvoice(i.id)} disabled={!clearInvoiceCashAccount}>
-                                Confirm clear
-                              </Button>
-                              <Button size="small" onClick={() => setClearingInvoiceId(null)}>
-                                Cancel
-                              </Button>
-                            </Stack>
+                          <TableCell colSpan={3}>
+                            <Typography variant="body2" color="text.secondary">No customers yet.</Typography>
                           </TableCell>
                         </TableRow>
                       )}
-                    </Fragment>
-                  );
-                })}
-                {invoices.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7}>
-                      <Typography variant="body2" color="text.secondary">
-                        No invoices yet.
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
-
-      <Card variant="outlined">
-        <CardContent>
-          <Typography variant="subtitle1" gutterBottom>
-            New Receipt
-          </Typography>
-          <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", alignItems: "center" }}>
-            <TextField select label="Customer" size="small" value={rcCustomer} onChange={(e) => setRcCustomer(e.target.value)} sx={{ minWidth: 170 }}>
-              {customers.map((c) => (
-                <MenuItem key={c.id} value={c.id}>
-                  {c.name}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField label="Date" type="date" size="small" value={rcDate} onChange={(e) => setRcDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-            <TextField select label="Cash account" size="small" value={rcCashAccount} onChange={(e) => setRcCashAccount(e.target.value)} sx={{ minWidth: 170 }}>
-              {glAccounts.map((g) => (
-                <MenuItem key={g.id} value={g.id}>
-                  {g.code} {g.name}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField label="Amount" type="number" size="small" value={rcAmount} onChange={(e) => setRcAmount(e.target.value)} sx={{ width: 130 }} />
-            <TextField label="Reference" size="small" value={rcReference} onChange={(e) => setRcReference(e.target.value)} sx={{ minWidth: 160 }} />
-            <Button variant="contained" onClick={handleCreateReceipt} disabled={!rcCustomer || !rcCashAccount || !rcAmount}>
-              Record receipt
-            </Button>
-          </Stack>
-
-          <Typography variant="subtitle2" sx={{ mt: 3 }}>
-            Apply a Receipt to an Invoice
-          </Typography>
-          <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", alignItems: "center", mt: 1 }}>
-            <TextField select label="Receipt (unapplied)" size="small" value={applyReceiptId} onChange={(e) => setApplyReceiptId(e.target.value)} sx={{ minWidth: 220 }}>
-              {unappliedReceipts.map((r) => (
-                <MenuItem key={r.id} value={r.id}>
-                  {r.customer_name} — {fmt(r.unapplied_balance)} unapplied
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField select label="Invoice" size="small" value={applyInvoiceId} onChange={(e) => setApplyInvoiceId(e.target.value)} sx={{ minWidth: 220 }}>
-              {openInvoices.map((i) => (
-                <MenuItem key={i.id} value={i.id}>
-                  {i.invoice_number} ({i.customer_name}) — {fmt(i.remaining_balance)} remaining
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField label="Amount" type="number" size="small" value={applyReceiptAmount} onChange={(e) => setApplyReceiptAmount(e.target.value)} sx={{ width: 130 }} />
-            <Button variant="contained" onClick={handleApplyReceipt} disabled={!applyReceiptId || !applyInvoiceId || !applyReceiptAmount}>
-              Apply
-            </Button>
-          </Stack>
-
-          <TableContainer sx={{ mt: 2 }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Customer</TableCell>
-                  <TableCell align="right">Amount</TableCell>
-                  <TableCell align="right">Unapplied</TableCell>
-                  <TableCell>Reference</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {receipts.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell>{r.receipt_date}</TableCell>
-                    <TableCell>{r.customer_name}</TableCell>
-                    <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(r.amount)}</TableCell>
-                    <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(r.unapplied_balance)}</TableCell>
-                    <TableCell>{r.reference ?? "—"}</TableCell>
-                  </TableRow>
-                ))}
-                {receipts.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5}>
-                      <Typography variant="body2" color="text.secondary">
-                        No receipts yet.
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
-
-      <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
-        <Typography variant="h6">AR Aging</Typography>
-        <TextField label="As of" type="date" size="small" value={arAsOf} onChange={(e) => setArAsOf(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-      </Stack>
-      {arAging && (
-        <>
-          <Typography variant="body2">
-            Total outstanding: <strong>{fmt(arAging.total_remaining)}</strong>
-          </Typography>
-          <TableContainer component={Card} variant="outlined">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Customer</TableCell>
-                  <TableCell>Invoice</TableCell>
-                  <TableCell>Due</TableCell>
-                  <TableCell align="right">Days Overdue</TableCell>
-                  <TableCell>Bucket</TableCell>
-                  <TableCell align="right">Remaining</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {arAging.rows.map((row) => (
-                  <TableRow key={row.document_id}>
-                    <TableCell>{row.party_name}</TableCell>
-                    <TableCell>{row.number}</TableCell>
-                    <TableCell>{row.due_date}</TableCell>
-                    <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{row.days_overdue}</TableCell>
-                    <TableCell>
-                      <Chip size="small" label={row.bucket} color={BUCKET_COLOR[row.bucket]} />
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(row.remaining_balance)}</TableCell>
-                  </TableRow>
-                ))}
-                {arAging.rows.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6}>
-                      <Typography variant="body2" color="text.secondary">
-                        Nothing outstanding.
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </>
-      )}
-
-      <Typography variant="h6">Accounts Payable</Typography>
-
-      <Card variant="outlined">
-        <CardContent>
-          <Typography variant="subtitle1" gutterBottom>
-            New Bill
-          </Typography>
-          <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", alignItems: "center" }}>
-            <TextField select label="Vendor" size="small" value={billVendor} onChange={(e) => setBillVendor(e.target.value)} sx={{ minWidth: 170 }}>
-              {vendors.map((v) => (
-                <MenuItem key={v.id} value={v.id}>
-                  {v.name}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField label="Bill #" size="small" value={billNumber} onChange={(e) => setBillNumber(e.target.value)} sx={{ width: 130 }} />
-            <TextField label="Date" type="date" size="small" value={billDate} onChange={(e) => setBillDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-            <TextField label="Due date" type="date" size="small" value={billDueDate} onChange={(e) => setBillDueDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-            <TextField select label="Expense account" size="small" value={billExpenseAccount} onChange={(e) => setBillExpenseAccount(e.target.value)} sx={{ minWidth: 170 }}>
-              {glAccounts.map((g) => (
-                <MenuItem key={g.id} value={g.id}>
-                  {g.code} {g.name}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField label="Net amount" type="number" size="small" value={billAmount} onChange={(e) => setBillAmount(e.target.value)} sx={{ width: 130 }} />
-            <TextField select label="Tax code" size="small" value={billTaxCode} onChange={(e) => setBillTaxCode(e.target.value)} sx={{ minWidth: 160 }}>
-              <MenuItem value="">— none —</MenuItem>
-              {taxCodes.filter((t) => t.is_active).map((t) => (
-                <MenuItem key={t.id} value={t.id}>
-                  {t.code} ({t.rate_pct}%)
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField select label="TDS section" size="small" value={billTdsSection} onChange={(e) => setBillTdsSection(e.target.value)} sx={{ minWidth: 160 }}>
-              <MenuItem value="">— none —</MenuItem>
-              {tdsSections.filter((s) => s.is_active).map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {s.section_code} ({s.rate_pct}%)
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField select label="GST rate" size="small" value={billGstRate} onChange={(e) => setBillGstRate(e.target.value)} sx={{ minWidth: 160 }}>
-              <MenuItem value="">— none —</MenuItem>
-              {gstRates.filter((r) => r.is_active && r.direction === "input").map((r) => (
-                <MenuItem key={r.id} value={r.id}>
-                  {r.description} ({r.rate_pct}%)
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField label="Discount %" type="number" size="small" value={billDiscountPct} onChange={(e) => setBillDiscountPct(e.target.value)} sx={{ width: 110 }} />
-            <TextField label="Discount days" type="number" size="small" value={billDiscountDays} onChange={(e) => setBillDiscountDays(e.target.value)} sx={{ width: 130 }} />
-            <Button variant="contained" onClick={handleCreateBill} disabled={!billVendor || !billNumber || !billExpenseAccount || !billAmount}>
-              Create bill
-            </Button>
-          </Stack>
-
-          <TableContainer sx={{ mt: 2 }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Number</TableCell>
-                  <TableCell>Vendor</TableCell>
-                  <TableCell>Due</TableCell>
-                  <TableCell align="right">TDS</TableCell>
-                  <TableCell align="right">Amount</TableCell>
-                  <TableCell align="right">Remaining</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell />
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {bills.map((b) => {
-                  const isOpen = b.status === "open" || b.status === "partially_paid";
-                  const discountEligible =
-                    b.discount_pct != null && b.discount_days != null && b.discount_taken_amount == null && new Date() <= new Date(new Date(b.bill_date).getTime() + b.discount_days * 86400000);
-                  return (
-                    <Fragment key={b.id}>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Card variant="outlined">
+              <CardContent>
+                <Typography variant="subtitle1" gutterBottom>
+                  New Vendor
+                </Typography>
+                <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+                  <TextField label="Name" size="small" value={newVendorName} onChange={(e) => setNewVendorName(e.target.value)} />
+                  <TextField label="State" size="small" value={newVendorState} onChange={(e) => setNewVendorState(e.target.value)} sx={{ width: 130 }} />
+                  <TextField label="GSTIN" size="small" value={newVendorGstin} onChange={(e) => setNewVendorGstin(e.target.value)} sx={{ width: 160 }} />
+                  <Button size="small" variant="outlined" onClick={handleAddVendor} disabled={!newVendorName}>
+                    Add
+                  </Button>
+                </Stack>
+                <TableContainer sx={{ mt: 2 }}>
+                  <Table size="small">
+                    <TableHead>
                       <TableRow>
-                        <TableCell>{b.bill_number}</TableCell>
-                        <TableCell>{b.vendor_name}</TableCell>
-                        <TableCell>{b.due_date}</TableCell>
-                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{b.tds_amount > 0 ? fmt(b.tds_amount) : "—"}</TableCell>
-                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(b.amount)}</TableCell>
-                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(b.remaining_balance)}</TableCell>
-                        <TableCell>
-                          <Chip size="small" label={b.status.replace("_", " ")} color={STATUS_COLOR[b.status]} />
-                          {b.discount_taken_amount != null && (
-                            <Chip size="small" label={`discount ${fmt(b.discount_taken_amount)}`} variant="outlined" sx={{ ml: 0.5 }} />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {isOpen && (
-                            <Button
-                              size="small"
-                              onClick={() => {
-                                setClearingBillId(clearingBillId === b.id ? null : b.id);
-                                setClearBillDate(todayValue());
-                                setClearBillTakeDiscount(false);
-                              }}
-                            >
-                              Clear
-                            </Button>
-                          )}
-                        </TableCell>
+                        <TableCell>Name</TableCell>
+                        <TableCell>State</TableCell>
+                        <TableCell>GSTIN</TableCell>
                       </TableRow>
-                      {clearingBillId === b.id && (
+                    </TableHead>
+                    <TableBody>
+                      {vendors.map((v) => (
+                        <TableRow key={v.id}>
+                          <TableCell>{v.name}</TableCell>
+                          <TableCell>{v.state ?? "—"}</TableCell>
+                          <TableCell>{v.gstin ?? "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                      {vendors.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={8} sx={{ bgcolor: "action.hover" }}>
-                            <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", alignItems: "center", py: 1 }}>
-                              <TextField select label="Cash account" size="small" value={clearBillCashAccount} onChange={(e) => setClearBillCashAccount(e.target.value)} sx={{ minWidth: 170 }}>
-                                {glAccounts.map((g) => (
-                                  <MenuItem key={g.id} value={g.id}>
-                                    {g.code} {g.name}
-                                  </MenuItem>
-                                ))}
-                              </TextField>
-                              <TextField
-                                label="Date"
-                                type="date"
-                                size="small"
-                                value={clearBillDate}
-                                onChange={(e) => setClearBillDate(e.target.value)}
-                                slotProps={{ inputLabel: { shrink: true } }}
-                              />
-                              {discountEligible && (
-                                <FormControlLabel
-                                  control={<Checkbox size="small" checked={clearBillTakeDiscount} onChange={(e) => setClearBillTakeDiscount(e.target.checked)} />}
-                                  label={`Take ${b.discount_pct}% discount`}
-                                />
-                              )}
-                              <Button size="small" variant="contained" onClick={() => handleClearBill(b.id)} disabled={!clearBillCashAccount}>
-                                Confirm clear
-                              </Button>
-                              <Button size="small" onClick={() => setClearingBillId(null)}>
-                                Cancel
-                              </Button>
-                            </Stack>
+                          <TableCell colSpan={3}>
+                            <Typography variant="body2" color="text.secondary">No vendors yet.</Typography>
                           </TableCell>
                         </TableRow>
                       )}
-                    </Fragment>
-                  );
-                })}
-                {bills.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={8}>
-                      <Typography variant="body2" color="text.secondary">
-                        No bills yet.
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      </TabPanel>
 
-      <Card variant="outlined">
-        <CardContent>
-          <Typography variant="subtitle1" gutterBottom>
-            New Payment
-          </Typography>
-          <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", alignItems: "center" }}>
-            <TextField select label="Vendor" size="small" value={pmVendor} onChange={(e) => setPmVendor(e.target.value)} sx={{ minWidth: 170 }}>
-              {vendors.map((v) => (
-                <MenuItem key={v.id} value={v.id}>
-                  {v.name}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField label="Date" type="date" size="small" value={pmDate} onChange={(e) => setPmDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-            <TextField select label="Cash account" size="small" value={pmCashAccount} onChange={(e) => setPmCashAccount(e.target.value)} sx={{ minWidth: 170 }}>
-              {glAccounts.map((g) => (
-                <MenuItem key={g.id} value={g.id}>
-                  {g.code} {g.name}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField label="Amount" type="number" size="small" value={pmAmount} onChange={(e) => setPmAmount(e.target.value)} sx={{ width: 130 }} />
-            <TextField label="Reference" size="small" value={pmReference} onChange={(e) => setPmReference(e.target.value)} sx={{ minWidth: 160 }} />
-            <Button variant="contained" onClick={handleCreatePayment} disabled={!pmVendor || !pmCashAccount || !pmAmount}>
-              Record payment
-            </Button>
+      <TabPanel value={tab} index={1}>
+        <Stack spacing={2}>
+          <Card variant="outlined">
+            <CardContent>
+              <Typography variant="subtitle1" gutterBottom>
+                New Invoice
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+                  <TextField select label="Customer" size="small" fullWidth value={invCustomer} onChange={(e) => setInvCustomer(e.target.value)}>
+                    {customers.map((c) => (
+                      <MenuItem key={c.id} value={c.id}>
+                        {c.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3, md: 1.6 }}>
+                  <TextField label="Invoice #" size="small" fullWidth value={invNumber} onChange={(e) => setInvNumber(e.target.value)} />
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+                  <TextField label="Date" type="date" size="small" fullWidth value={invDate} onChange={(e) => setInvDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+                  <TextField label="Due date" type="date" size="small" fullWidth value={invDueDate} onChange={(e) => setInvDueDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+                  <TextField select label="Revenue account" size="small" fullWidth value={invRevenueAccount} onChange={(e) => setInvRevenueAccount(e.target.value)}>
+                    {glAccounts.map((g) => (
+                      <MenuItem key={g.id} value={g.id}>
+                        {g.code} {g.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3, md: 1.6 }}>
+                  <TextField label="Net amount" type="number" size="small" fullWidth value={invAmount} onChange={(e) => setInvAmount(e.target.value)} />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4, md: 2.4 }}>
+                  <TextField select label="Tax code" size="small" fullWidth value={invTaxCode} onChange={(e) => setInvTaxCode(e.target.value)}>
+                    <MenuItem value="">— none —</MenuItem>
+                    {taxCodes.filter((t) => t.is_active).map((t) => (
+                      <MenuItem key={t.id} value={t.id}>
+                        {t.code} ({t.rate_pct}%)
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4, md: 2.4 }}>
+                  <TextField select label="GST rate" size="small" fullWidth value={invGstRate} onChange={(e) => setInvGstRate(e.target.value)}>
+                    <MenuItem value="">— none —</MenuItem>
+                    {gstRates.filter((r) => r.is_active && r.direction === "output").map((r) => (
+                      <MenuItem key={r.id} value={r.id}>
+                        {r.description} ({r.rate_pct}%)
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid size={{ xs: 6, sm: 4, md: 1.6 }}>
+                  <TextField label="Discount %" type="number" size="small" fullWidth value={invDiscountPct} onChange={(e) => setInvDiscountPct(e.target.value)} />
+                </Grid>
+                <Grid size={{ xs: 6, sm: 4, md: 1.6 }}>
+                  <TextField label="Discount days" type="number" size="small" fullWidth value={invDiscountDays} onChange={(e) => setInvDiscountDays(e.target.value)} />
+                </Grid>
+              </Grid>
+              <Button variant="contained" sx={{ mt: 2 }} onClick={handleCreateInvoice} disabled={!invCustomer || !invNumber || !invRevenueAccount || !invAmount}>
+                Create invoice
+              </Button>
+
+              <TableContainer sx={{ mt: 2 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Number</TableCell>
+                      <TableCell>Customer</TableCell>
+                      <TableCell>Due</TableCell>
+                      <TableCell align="right">Amount</TableCell>
+                      <TableCell align="right">Remaining</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {invoices.map((i) => {
+                      const isOpen = i.status === "open" || i.status === "partially_paid";
+                      const discountEligible =
+                        i.discount_pct != null && i.discount_days != null && i.discount_taken_amount == null && new Date() <= new Date(new Date(i.invoice_date).getTime() + i.discount_days * 86400000);
+                      return (
+                        <Fragment key={i.id}>
+                          <TableRow>
+                            <TableCell>{i.invoice_number}</TableCell>
+                            <TableCell>{i.customer_name}</TableCell>
+                            <TableCell>{i.due_date}</TableCell>
+                            <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(i.amount)}</TableCell>
+                            <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(i.remaining_balance)}</TableCell>
+                            <TableCell>
+                              <Chip size="small" label={i.status.replace("_", " ")} color={STATUS_COLOR[i.status]} />
+                              {i.discount_taken_amount != null && (
+                                <Chip size="small" label={`discount ${fmt(i.discount_taken_amount)}`} variant="outlined" sx={{ ml: 0.5 }} />
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {isOpen && (
+                                <Button
+                                  size="small"
+                                  onClick={() => {
+                                    setClearingInvoiceId(clearingInvoiceId === i.id ? null : i.id);
+                                    setClearInvoiceDate(todayValue());
+                                    setClearInvoiceTakeDiscount(false);
+                                  }}
+                                >
+                                  Clear
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                          {clearingInvoiceId === i.id && (
+                            <TableRow>
+                              <TableCell colSpan={7} sx={{ bgcolor: "action.hover" }}>
+                                <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", alignItems: "center", py: 1 }}>
+                                  <TextField select label="Cash account" size="small" value={clearInvoiceCashAccount} onChange={(e) => setClearInvoiceCashAccount(e.target.value)} sx={{ minWidth: 170 }}>
+                                    {glAccounts.map((g) => (
+                                      <MenuItem key={g.id} value={g.id}>
+                                        {g.code} {g.name}
+                                      </MenuItem>
+                                    ))}
+                                  </TextField>
+                                  <TextField
+                                    label="Date"
+                                    type="date"
+                                    size="small"
+                                    value={clearInvoiceDate}
+                                    onChange={(e) => setClearInvoiceDate(e.target.value)}
+                                    slotProps={{ inputLabel: { shrink: true } }}
+                                  />
+                                  {discountEligible && (
+                                    <FormControlLabel
+                                      control={<Checkbox size="small" checked={clearInvoiceTakeDiscount} onChange={(e) => setClearInvoiceTakeDiscount(e.target.checked)} />}
+                                      label={`Take ${i.discount_pct}% discount`}
+                                    />
+                                  )}
+                                  <Button size="small" variant="contained" onClick={() => handleClearInvoice(i.id)} disabled={!clearInvoiceCashAccount}>
+                                    Confirm clear
+                                  </Button>
+                                  <Button size="small" onClick={() => setClearingInvoiceId(null)}>
+                                    Cancel
+                                  </Button>
+                                </Stack>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </Fragment>
+                      );
+                    })}
+                    {invoices.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7}>
+                          <Typography variant="body2" color="text.secondary">
+                            No invoices yet.
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </CardContent>
+          </Card>
+
+          <Card variant="outlined">
+            <CardContent>
+              <Typography variant="subtitle1" gutterBottom>
+                New Receipt
+              </Typography>
+              <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", alignItems: "center" }}>
+                <TextField select label="Customer" size="small" value={rcCustomer} onChange={(e) => setRcCustomer(e.target.value)} sx={{ minWidth: 170 }}>
+                  {customers.map((c) => (
+                    <MenuItem key={c.id} value={c.id}>
+                      {c.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField label="Date" type="date" size="small" value={rcDate} onChange={(e) => setRcDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+                <TextField select label="Cash account" size="small" value={rcCashAccount} onChange={(e) => setRcCashAccount(e.target.value)} sx={{ minWidth: 170 }}>
+                  {glAccounts.map((g) => (
+                    <MenuItem key={g.id} value={g.id}>
+                      {g.code} {g.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField label="Amount" type="number" size="small" value={rcAmount} onChange={(e) => setRcAmount(e.target.value)} sx={{ width: 130 }} />
+                <TextField label="Reference" size="small" value={rcReference} onChange={(e) => setRcReference(e.target.value)} sx={{ minWidth: 160 }} />
+                <Button variant="contained" onClick={handleCreateReceipt} disabled={!rcCustomer || !rcCashAccount || !rcAmount}>
+                  Record receipt
+                </Button>
+              </Stack>
+
+              <Typography variant="subtitle2" sx={{ mt: 3 }}>
+                Apply a Receipt to an Invoice
+              </Typography>
+              <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", alignItems: "center", mt: 1 }}>
+                <TextField select label="Receipt (unapplied)" size="small" value={applyReceiptId} onChange={(e) => setApplyReceiptId(e.target.value)} sx={{ minWidth: 220 }}>
+                  {unappliedReceipts.map((r) => (
+                    <MenuItem key={r.id} value={r.id}>
+                      {r.customer_name} — {fmt(r.unapplied_balance)} unapplied
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField select label="Invoice" size="small" value={applyInvoiceId} onChange={(e) => setApplyInvoiceId(e.target.value)} sx={{ minWidth: 220 }}>
+                  {openInvoices.map((i) => (
+                    <MenuItem key={i.id} value={i.id}>
+                      {i.invoice_number} ({i.customer_name}) — {fmt(i.remaining_balance)} remaining
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField label="Amount" type="number" size="small" value={applyReceiptAmount} onChange={(e) => setApplyReceiptAmount(e.target.value)} sx={{ width: 130 }} />
+                <Button variant="contained" onClick={handleApplyReceipt} disabled={!applyReceiptId || !applyInvoiceId || !applyReceiptAmount}>
+                  Apply
+                </Button>
+              </Stack>
+
+              <TableContainer sx={{ mt: 2 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Date</TableCell>
+                      <TableCell>Customer</TableCell>
+                      <TableCell align="right">Amount</TableCell>
+                      <TableCell align="right">Unapplied</TableCell>
+                      <TableCell>Reference</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {receipts.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell>{r.receipt_date}</TableCell>
+                        <TableCell>{r.customer_name}</TableCell>
+                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(r.amount)}</TableCell>
+                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(r.unapplied_balance)}</TableCell>
+                        <TableCell>{r.reference ?? "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                    {receipts.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5}>
+                          <Typography variant="body2" color="text.secondary">
+                            No receipts yet.
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </CardContent>
+          </Card>
+
+          <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
+            <Typography variant="h6">AR Aging</Typography>
+            <TextField label="As of" type="date" size="small" value={arAsOf} onChange={(e) => setArAsOf(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
           </Stack>
+          {arAging && (
+            <>
+              <Typography variant="body2">
+                Total outstanding: <strong>{fmt(arAging.total_remaining)}</strong>
+              </Typography>
+              <TableContainer component={Card} variant="outlined">
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Customer</TableCell>
+                      <TableCell>Invoice</TableCell>
+                      <TableCell>Due</TableCell>
+                      <TableCell align="right">Days Overdue</TableCell>
+                      <TableCell>Bucket</TableCell>
+                      <TableCell align="right">Remaining</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {arAging.rows.map((row) => (
+                      <TableRow key={row.document_id}>
+                        <TableCell>{row.party_name}</TableCell>
+                        <TableCell>{row.number}</TableCell>
+                        <TableCell>{row.due_date}</TableCell>
+                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{row.days_overdue}</TableCell>
+                        <TableCell>
+                          <Chip size="small" label={row.bucket} color={BUCKET_COLOR[row.bucket]} />
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(row.remaining_balance)}</TableCell>
+                      </TableRow>
+                    ))}
+                    {arAging.rows.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6}>
+                          <Typography variant="body2" color="text.secondary">
+                            Nothing outstanding.
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </>
+          )}
+        </Stack>
+      </TabPanel>
 
-          <Typography variant="subtitle2" sx={{ mt: 3 }}>
-            Apply a Payment to a Bill
-          </Typography>
-          <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", alignItems: "center", mt: 1 }}>
-            <TextField select label="Payment (unapplied)" size="small" value={applyPaymentId} onChange={(e) => setApplyPaymentId(e.target.value)} sx={{ minWidth: 220 }}>
-              {unappliedPayments.map((p) => (
-                <MenuItem key={p.id} value={p.id}>
-                  {p.vendor_name} — {fmt(p.unapplied_balance)} unapplied
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField select label="Bill" size="small" value={applyBillId} onChange={(e) => setApplyBillId(e.target.value)} sx={{ minWidth: 220 }}>
-              {openBills.map((b) => (
-                <MenuItem key={b.id} value={b.id}>
-                  {b.bill_number} ({b.vendor_name}) — {fmt(b.remaining_balance)} remaining
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField label="Amount" type="number" size="small" value={applyPaymentAmount} onChange={(e) => setApplyPaymentAmount(e.target.value)} sx={{ width: 130 }} />
-            <Button variant="contained" onClick={handleApplyPayment} disabled={!applyPaymentId || !applyBillId || !applyPaymentAmount}>
-              Apply
-            </Button>
+      <TabPanel value={tab} index={2}>
+        <Stack spacing={2}>
+          <Card variant="outlined">
+            <CardContent>
+              <Typography variant="subtitle1" gutterBottom>
+                New Bill
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+                  <TextField select label="Vendor" size="small" fullWidth value={billVendor} onChange={(e) => setBillVendor(e.target.value)}>
+                    {vendors.map((v) => (
+                      <MenuItem key={v.id} value={v.id}>
+                        {v.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3, md: 1.6 }}>
+                  <TextField label="Bill #" size="small" fullWidth value={billNumber} onChange={(e) => setBillNumber(e.target.value)} />
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+                  <TextField label="Date" type="date" size="small" fullWidth value={billDate} onChange={(e) => setBillDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+                  <TextField label="Due date" type="date" size="small" fullWidth value={billDueDate} onChange={(e) => setBillDueDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+                  <TextField select label="Expense account" size="small" fullWidth value={billExpenseAccount} onChange={(e) => setBillExpenseAccount(e.target.value)}>
+                    {glAccounts.map((g) => (
+                      <MenuItem key={g.id} value={g.id}>
+                        {g.code} {g.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3, md: 1.6 }}>
+                  <TextField label="Net amount" type="number" size="small" fullWidth value={billAmount} onChange={(e) => setBillAmount(e.target.value)} />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4, md: 1.8 }}>
+                  <TextField select label="Tax code" size="small" fullWidth value={billTaxCode} onChange={(e) => setBillTaxCode(e.target.value)}>
+                    <MenuItem value="">— none —</MenuItem>
+                    {taxCodes.filter((t) => t.is_active).map((t) => (
+                      <MenuItem key={t.id} value={t.id}>
+                        {t.code} ({t.rate_pct}%)
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4, md: 1.8 }}>
+                  <TextField select label="TDS section" size="small" fullWidth value={billTdsSection} onChange={(e) => setBillTdsSection(e.target.value)}>
+                    <MenuItem value="">— none —</MenuItem>
+                    {tdsSections.filter((s) => s.is_active).map((s) => (
+                      <MenuItem key={s.id} value={s.id}>
+                        {s.section_code} ({s.rate_pct}%)
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4, md: 1.8 }}>
+                  <TextField select label="GST rate" size="small" fullWidth value={billGstRate} onChange={(e) => setBillGstRate(e.target.value)}>
+                    <MenuItem value="">— none —</MenuItem>
+                    {gstRates.filter((r) => r.is_active && r.direction === "input").map((r) => (
+                      <MenuItem key={r.id} value={r.id}>
+                        {r.description} ({r.rate_pct}%)
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3, md: 1.4 }}>
+                  <TextField label="Discount %" type="number" size="small" fullWidth value={billDiscountPct} onChange={(e) => setBillDiscountPct(e.target.value)} />
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3, md: 1.6 }}>
+                  <TextField label="Discount days" type="number" size="small" fullWidth value={billDiscountDays} onChange={(e) => setBillDiscountDays(e.target.value)} />
+                </Grid>
+              </Grid>
+              <Button variant="contained" sx={{ mt: 2 }} onClick={handleCreateBill} disabled={!billVendor || !billNumber || !billExpenseAccount || !billAmount}>
+                Create bill
+              </Button>
+
+              <TableContainer sx={{ mt: 2 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Number</TableCell>
+                      <TableCell>Vendor</TableCell>
+                      <TableCell>Due</TableCell>
+                      <TableCell align="right">TDS</TableCell>
+                      <TableCell align="right">Amount</TableCell>
+                      <TableCell align="right">Remaining</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {bills.map((b) => {
+                      const isOpen = b.status === "open" || b.status === "partially_paid";
+                      const discountEligible =
+                        b.discount_pct != null && b.discount_days != null && b.discount_taken_amount == null && new Date() <= new Date(new Date(b.bill_date).getTime() + b.discount_days * 86400000);
+                      return (
+                        <Fragment key={b.id}>
+                          <TableRow>
+                            <TableCell>{b.bill_number}</TableCell>
+                            <TableCell>{b.vendor_name}</TableCell>
+                            <TableCell>{b.due_date}</TableCell>
+                            <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{b.tds_amount > 0 ? fmt(b.tds_amount) : "—"}</TableCell>
+                            <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(b.amount)}</TableCell>
+                            <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(b.remaining_balance)}</TableCell>
+                            <TableCell>
+                              <Chip size="small" label={b.status.replace("_", " ")} color={STATUS_COLOR[b.status]} />
+                              {b.discount_taken_amount != null && (
+                                <Chip size="small" label={`discount ${fmt(b.discount_taken_amount)}`} variant="outlined" sx={{ ml: 0.5 }} />
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {isOpen && (
+                                <Button
+                                  size="small"
+                                  onClick={() => {
+                                    setClearingBillId(clearingBillId === b.id ? null : b.id);
+                                    setClearBillDate(todayValue());
+                                    setClearBillTakeDiscount(false);
+                                  }}
+                                >
+                                  Clear
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                          {clearingBillId === b.id && (
+                            <TableRow>
+                              <TableCell colSpan={8} sx={{ bgcolor: "action.hover" }}>
+                                <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", alignItems: "center", py: 1 }}>
+                                  <TextField select label="Cash account" size="small" value={clearBillCashAccount} onChange={(e) => setClearBillCashAccount(e.target.value)} sx={{ minWidth: 170 }}>
+                                    {glAccounts.map((g) => (
+                                      <MenuItem key={g.id} value={g.id}>
+                                        {g.code} {g.name}
+                                      </MenuItem>
+                                    ))}
+                                  </TextField>
+                                  <TextField
+                                    label="Date"
+                                    type="date"
+                                    size="small"
+                                    value={clearBillDate}
+                                    onChange={(e) => setClearBillDate(e.target.value)}
+                                    slotProps={{ inputLabel: { shrink: true } }}
+                                  />
+                                  {discountEligible && (
+                                    <FormControlLabel
+                                      control={<Checkbox size="small" checked={clearBillTakeDiscount} onChange={(e) => setClearBillTakeDiscount(e.target.checked)} />}
+                                      label={`Take ${b.discount_pct}% discount`}
+                                    />
+                                  )}
+                                  <Button size="small" variant="contained" onClick={() => handleClearBill(b.id)} disabled={!clearBillCashAccount}>
+                                    Confirm clear
+                                  </Button>
+                                  <Button size="small" onClick={() => setClearingBillId(null)}>
+                                    Cancel
+                                  </Button>
+                                </Stack>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </Fragment>
+                      );
+                    })}
+                    {bills.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={8}>
+                          <Typography variant="body2" color="text.secondary">
+                            No bills yet.
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </CardContent>
+          </Card>
+
+          <Card variant="outlined">
+            <CardContent>
+              <Typography variant="subtitle1" gutterBottom>
+                New Payment
+              </Typography>
+              <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", alignItems: "center" }}>
+                <TextField select label="Vendor" size="small" value={pmVendor} onChange={(e) => setPmVendor(e.target.value)} sx={{ minWidth: 170 }}>
+                  {vendors.map((v) => (
+                    <MenuItem key={v.id} value={v.id}>
+                      {v.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField label="Date" type="date" size="small" value={pmDate} onChange={(e) => setPmDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+                <TextField select label="Cash account" size="small" value={pmCashAccount} onChange={(e) => setPmCashAccount(e.target.value)} sx={{ minWidth: 170 }}>
+                  {glAccounts.map((g) => (
+                    <MenuItem key={g.id} value={g.id}>
+                      {g.code} {g.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField label="Amount" type="number" size="small" value={pmAmount} onChange={(e) => setPmAmount(e.target.value)} sx={{ width: 130 }} />
+                <TextField label="Reference" size="small" value={pmReference} onChange={(e) => setPmReference(e.target.value)} sx={{ minWidth: 160 }} />
+                <Button variant="contained" onClick={handleCreatePayment} disabled={!pmVendor || !pmCashAccount || !pmAmount}>
+                  Record payment
+                </Button>
+              </Stack>
+
+              <Typography variant="subtitle2" sx={{ mt: 3 }}>
+                Apply a Payment to a Bill
+              </Typography>
+              <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", alignItems: "center", mt: 1 }}>
+                <TextField select label="Payment (unapplied)" size="small" value={applyPaymentId} onChange={(e) => setApplyPaymentId(e.target.value)} sx={{ minWidth: 220 }}>
+                  {unappliedPayments.map((p) => (
+                    <MenuItem key={p.id} value={p.id}>
+                      {p.vendor_name} — {fmt(p.unapplied_balance)} unapplied
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField select label="Bill" size="small" value={applyBillId} onChange={(e) => setApplyBillId(e.target.value)} sx={{ minWidth: 220 }}>
+                  {openBills.map((b) => (
+                    <MenuItem key={b.id} value={b.id}>
+                      {b.bill_number} ({b.vendor_name}) — {fmt(b.remaining_balance)} remaining
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField label="Amount" type="number" size="small" value={applyPaymentAmount} onChange={(e) => setApplyPaymentAmount(e.target.value)} sx={{ width: 130 }} />
+                <Button variant="contained" onClick={handleApplyPayment} disabled={!applyPaymentId || !applyBillId || !applyPaymentAmount}>
+                  Apply
+                </Button>
+              </Stack>
+
+              <TableContainer sx={{ mt: 2 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Date</TableCell>
+                      <TableCell>Vendor</TableCell>
+                      <TableCell align="right">Amount</TableCell>
+                      <TableCell align="right">Unapplied</TableCell>
+                      <TableCell>Reference</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {payments.map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell>{p.payment_date}</TableCell>
+                        <TableCell>{p.vendor_name}</TableCell>
+                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(p.amount)}</TableCell>
+                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(p.unapplied_balance)}</TableCell>
+                        <TableCell>{p.reference ?? "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                    {payments.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5}>
+                          <Typography variant="body2" color="text.secondary">
+                            No payments yet.
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </CardContent>
+          </Card>
+
+          <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
+            <Typography variant="h6">AP Aging</Typography>
+            <TextField label="As of" type="date" size="small" value={apAsOf} onChange={(e) => setApAsOf(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
           </Stack>
+          {apAging && (
+            <>
+              <Typography variant="body2">
+                Total outstanding: <strong>{fmt(apAging.total_remaining)}</strong>
+              </Typography>
+              <TableContainer component={Card} variant="outlined">
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Vendor</TableCell>
+                      <TableCell>Bill</TableCell>
+                      <TableCell>Due</TableCell>
+                      <TableCell align="right">Days Overdue</TableCell>
+                      <TableCell>Bucket</TableCell>
+                      <TableCell align="right">Remaining</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {apAging.rows.map((row) => (
+                      <TableRow key={row.document_id}>
+                        <TableCell>{row.party_name}</TableCell>
+                        <TableCell>{row.number}</TableCell>
+                        <TableCell>{row.due_date}</TableCell>
+                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{row.days_overdue}</TableCell>
+                        <TableCell>
+                          <Chip size="small" label={row.bucket} color={BUCKET_COLOR[row.bucket]} />
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(row.remaining_balance)}</TableCell>
+                      </TableRow>
+                    ))}
+                    {apAging.rows.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6}>
+                          <Typography variant="body2" color="text.secondary">
+                            Nothing outstanding.
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </>
+          )}
+        </Stack>
+      </TabPanel>
 
-          <TableContainer sx={{ mt: 2 }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Vendor</TableCell>
-                  <TableCell align="right">Amount</TableCell>
-                  <TableCell align="right">Unapplied</TableCell>
-                  <TableCell>Reference</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {payments.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell>{p.payment_date}</TableCell>
-                    <TableCell>{p.vendor_name}</TableCell>
-                    <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(p.amount)}</TableCell>
-                    <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(p.unapplied_balance)}</TableCell>
-                    <TableCell>{p.reference ?? "—"}</TableCell>
-                  </TableRow>
-                ))}
-                {payments.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5}>
-                      <Typography variant="body2" color="text.secondary">
-                        No payments yet.
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
-
-      <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
-        <Typography variant="h6">AP Aging</Typography>
-        <TextField label="As of" type="date" size="small" value={apAsOf} onChange={(e) => setApAsOf(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-      </Stack>
-      {apAging && (
-        <>
+      <TabPanel value={tab} index={3}>
+        <Stack spacing={2}>
           <Typography variant="body2">
-            Total outstanding: <strong>{fmt(apAging.total_remaining)}</strong>
+            Every invoice, bill, receipt, and payment posts a real journal entry through the General Ledger. A
+            receipt or payment not yet linked to anything is a down payment — an unapplied balance on the AR/AP
+            control account — apply it to an invoice or bill whenever one shows up, no separate posting needed.
           </Typography>
-          <TableContainer component={Card} variant="outlined">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Vendor</TableCell>
-                  <TableCell>Bill</TableCell>
-                  <TableCell>Due</TableCell>
-                  <TableCell align="right">Days Overdue</TableCell>
-                  <TableCell>Bucket</TableCell>
-                  <TableCell align="right">Remaining</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {apAging.rows.map((row) => (
-                  <TableRow key={row.document_id}>
-                    <TableCell>{row.party_name}</TableCell>
-                    <TableCell>{row.number}</TableCell>
-                    <TableCell>{row.due_date}</TableCell>
-                    <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{row.days_overdue}</TableCell>
-                    <TableCell>
-                      <Chip size="small" label={row.bucket} color={BUCKET_COLOR[row.bucket]} />
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{fmt(row.remaining_balance)}</TableCell>
-                  </TableRow>
-                ))}
-                {apAging.rows.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6}>
-                      <Typography variant="body2" color="text.secondary">
-                        Nothing outstanding.
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </>
-      )}
+          <Typography variant="subtitle2">Cash discounts &amp; one-click clear</Typography>
+          <Typography variant="body2" color="text.secondary">
+            An invoice or bill can carry payment terms (e.g. "2/10 Net 30"). "Clear" settles the whole open balance
+            in one click — optionally taking the early-payment discount first — creating and applying the
+            receipt/payment automatically.
+          </Typography>
+          <Typography variant="subtitle2">GST &amp; TDS</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Attach a GST rate or TDS section when creating an invoice or bill — set these up first on the{" "}
+            GST Returns and TDS pages.
+          </Typography>
+        </Stack>
+      </TabPanel>
     </Stack>
   );
 }
