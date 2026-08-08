@@ -6,7 +6,7 @@ from typing import Optional
 
 import bcrypt
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,8 @@ from app.database import get_db
 from app.models import CompanyMembership, User
 
 JWT_ALGORITHM = "HS256"
+ACCESS_COOKIE_NAME = "fe_access_token"
+REFRESH_COOKIE_NAME = "fe_refresh_token"
 _bearer_scheme = HTTPBearer(auto_error=False)
 
 
@@ -32,6 +34,36 @@ def create_access_token(user_id: str) -> str:
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=JWT_ALGORITHM)
 
 
+def set_session_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+    # SameSite=None is required for the cookie to be sent cross-site at all
+    # (frontend and backend are separate Vercel domains); browsers require
+    # Secure whenever SameSite=None is used, hence tying the two together.
+    samesite = "none" if settings.cookie_secure else "lax"
+    response.set_cookie(
+        ACCESS_COOKIE_NAME,
+        access_token,
+        max_age=settings.jwt_expire_minutes * 60,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite=samesite,
+        path="/",
+    )
+    response.set_cookie(
+        REFRESH_COOKIE_NAME,
+        refresh_token,
+        max_age=settings.refresh_token_expire_days * 86400,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite=samesite,
+        path="/",
+    )
+
+
+def clear_session_cookies(response: Response) -> None:
+    response.delete_cookie(ACCESS_COOKIE_NAME, path="/")
+    response.delete_cookie(REFRESH_COOKIE_NAME, path="/")
+
+
 def _credentials_exception() -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -41,13 +73,22 @@ def _credentials_exception() -> HTTPException:
 
 
 def get_current_user(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
     db: Session = Depends(get_db),
 ) -> User:
-    if credentials is None:
+    # The web app authenticates purely via the httpOnly access-token cookie
+    # (set by /auth/login, /auth/register, /auth/refresh) and never sees a
+    # raw token in JS. A Bearer header, when present, still works too --
+    # for API/script clients and for the test suite, which authenticates
+    # this way deliberately so it's unaffected by any cookie a test
+    # incidentally picks up by calling /auth/register or /auth/login again
+    # on the shared client.
+    token = credentials.credentials if credentials is not None else request.cookies.get(ACCESS_COOKIE_NAME)
+    if token is None:
         raise _credentials_exception()
     try:
-        payload = jwt.decode(credentials.credentials, settings.jwt_secret_key, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[JWT_ALGORITHM])
         user_id = payload.get("sub")
     except jwt.PyJWTError:
         raise _credentials_exception()
