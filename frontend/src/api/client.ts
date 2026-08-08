@@ -1,4 +1,11 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+// In production this goes through the same-origin /api/* rewrite in
+// vercel.json (proxied to the backend's own Vercel domain) rather than
+// calling the backend's domain directly -- a cookie set by a genuinely
+// cross-site response gets blocked by Safari's ITP and (increasingly)
+// Chrome's third-party-cookie defaults, even with SameSite=None; Secure
+// set correctly. Routing through /api keeps the browser's view of the
+// request same-origin, so the session cookie is always first-party.
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.PROD ? "/api" : "http://localhost:8000");
 
 export class ApiError extends Error {
   status: number;
