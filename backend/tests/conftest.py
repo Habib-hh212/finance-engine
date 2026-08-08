@@ -5,6 +5,12 @@ _TEST_DB = pathlib.Path(__file__).parent / "_test.db"
 if _TEST_DB.exists():
     _TEST_DB.unlink()
 os.environ["DATABASE_URL"] = f"sqlite:///{_TEST_DB}"
+# TestClient's base_url is plain http://testserver, so a Secure cookie set
+# during a test would just get silently dropped by the client's cookie jar.
+# Doesn't affect auth here (the suite authenticates via Bearer header, see
+# the `client` fixture below), but keeps Set-Cookie behavior consistent
+# with what's actually being exercised.
+os.environ["COOKIE_SECURE"] = "false"
 
 import pytest  # noqa: E402 - must follow the DATABASE_URL override above
 from fastapi.testclient import TestClient  # noqa: E402

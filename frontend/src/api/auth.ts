@@ -16,6 +16,8 @@ export const register = (email: string, password: string, name: string) =>
 
 export const login = (email: string, password: string) => apiPost<TokenResponse>("/auth/login", { email, password });
 
+export const logout = () => apiPost<{ message: string }>("/auth/logout");
+
 export const me = () => apiGet<CurrentUser>("/auth/me");
 
 export interface MessageResponse {
